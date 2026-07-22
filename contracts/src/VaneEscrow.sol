@@ -35,7 +35,9 @@ contract VaneEscrow {
     address public admin;
 
     /// @notice Protocol fee in basis points, charged to the business on settled results only.
-    uint16 public feeBps = 800; // 8%
+    /// @dev Launch pricing. Deliberately below card-processing rates so trying Vane is
+    ///      never a cost decision. Adjustable via setFee, capped hard at MAX_FEE_BPS.
+    uint16 public feeBps = 250; // 2.5%
     address public feeRecipient;
 
     uint16 public constant MAX_FEE_BPS = 1000; // hard ceiling, 10%
