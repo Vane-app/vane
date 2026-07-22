@@ -1,0 +1,24 @@
+{
+  "name": "@vane/agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The Vane falcon — verifies results on Arc and settles USDC payouts autonomously.",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "demo": "tsx src/demo.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@circle-fin/developer-controlled-wallets": "^10.8.0",
+    "@circle-fin/smart-contract-platform": "^10.8.0",
+    "dotenv": "^17.2.3",
+    "viem": "^2.55.5"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.0",
+    "tsx": "^4.23.1",
+    "typescript": "^5.9.3"
+  }
+}

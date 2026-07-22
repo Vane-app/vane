@@ -1,0 +1,21 @@
+{
+  "name": "@vane/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Vane escrow vault and referral registry — Solidity for Arc.",
+  "scripts": {
+    "compile": "tsx scripts/compile.ts",
+    "deploy": "tsx scripts/deploy.ts"
+  },
+  "dependencies": {
+    "@circle-fin/smart-contract-platform": "^10.8.0",
+    "dotenv": "^17.2.3",
+    "solc": "^0.8.36"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.0",
+    "tsx": "^4.23.1",
+    "typescript": "^5.9.3"
+  }
+}
