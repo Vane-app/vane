@@ -34,8 +34,16 @@ export function OnboardFrame({
           </h2>
           <ul className="ob-brand-points">
             {(earning
-              ? ["No card, no wallet, no jargon", "Paid in seconds, no minimum", "The falcon verifies every result"]
-              : ["Budget locked in escrow, never lost", "Fraud refused before your money moves", "Unspent budget returns automatically"]
+              ? [
+                  "Paid the second a result is verified",
+                  "Keep the full rate — no fees, no minimum",
+                  "The falcon checks every result, and tells you why",
+                ]
+              : [
+                  "Your budget locks in escrow — never lost",
+                  "Fraud is refused before your money moves",
+                  "Whatever isn't earned comes back to you",
+                ]
             ).map((p) => (
               <li key={p}>{p}</li>
             ))}
