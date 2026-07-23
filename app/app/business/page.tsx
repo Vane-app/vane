@@ -1,8 +1,41 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { TabBar, AppBar } from "../../components/AppChrome";
+import { Mascot, type FalconState } from "../../components/Mascot";
 import { campaigns, decisions, promoters, usd, remaining, poolPercent, daysLeft } from "../../lib/data";
+
+/** The agent, working in real time — cycles so the falcon is felt in charge. */
+const AGENT_BEATS: { state: FalconState; title: string; sub: string; tone: "check" | "ok" | "no" }[] = [
+  { state: "thinking", title: "Checking a signup from Amara", sub: "Reading onchain evidence and wallet history…", tone: "check" },
+  { state: "approving", title: "Verified — $2.00 → Amara", sub: "Referral traced, account active. Paid in 1.2s.", tone: "ok" },
+  { state: "thinking", title: "Checking 3 signups", sub: "Three wallets, created within the same hour…", tone: "check" },
+  { state: "refusing", title: "Held 3 claims — not paid", sub: "Wallets created together, silent since. Budget protected.", tone: "no" },
+];
+
+function LiveAgent() {
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setI((n) => (n + 1) % AGENT_BEATS.length), 2800);
+    return () => clearInterval(t);
+  }, []);
+  const b = AGENT_BEATS[i];
+  return (
+    <div className={`liveagent tone-${b.tone}`}>
+      <div className="liveagent-falcon">
+        <Mascot state={b.state} size={92} />
+      </div>
+      <div className="liveagent-body" key={i}>
+        <span className="liveagent-tag">
+          <span className="livedot" aria-hidden="true" /> The agent, live
+        </span>
+        <b>{b.title}</b>
+        <span>{b.sub}</span>
+      </div>
+    </div>
+  );
+}
 
 /**
  * Business — live campaign.
@@ -112,10 +145,14 @@ export default function BusinessDashboard() {
         </div>
       </section>
 
+      <section className="fade-up d3" style={{ marginBottom: 22 }}>
+        <LiveAgent />
+      </section>
+
       <section className="fade-up d4">
         <div className="row" style={{ justifyContent: "space-between", marginBottom: 4 }}>
           <p className="eyebrow" style={{ margin: 0 }}>
-            The agent, deciding
+            Recent decisions
           </p>
           <Link href="/paid" className="tiny" style={{ color: "var(--amber)", fontWeight: 700 }}>
             See all
@@ -124,9 +161,15 @@ export default function BusinessDashboard() {
 
         {decisions.map((d) => (
           <div key={d.id} className="event">
-            <span className={`dot ${d.verdict === "settled" ? "dot-ok" : "dot-no"}`} aria-hidden="true">
-              {d.verdict === "settled" ? "✓" : "✕"}
-            </span>
+            {d.verdict === "settled" ? (
+              <span className="dot dot-ok" aria-hidden="true">
+                ✓
+              </span>
+            ) : (
+              <span className="held-falcon" aria-hidden="true">
+                <Mascot state="refusing" size={44} />
+              </span>
+            )}
             <div>
               <b className="num">
                 {d.verdict === "settled" ? `${usd(d.amount)} → ${d.tasker}` : "3 claims refused"}

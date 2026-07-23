@@ -2132,6 +2132,83 @@ h3 {
   width: max-content;
 }
 
+/* live agent panel — the falcon working in real time on the dashboard */
+.liveagent {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 18px;
+  border-radius: 22px;
+  background: linear-gradient(165deg, rgba(240, 169, 75, 0.1), rgba(255, 255, 255, 0.03));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  transition: box-shadow 0.4s var(--ease);
+}
+
+.liveagent.tone-no {
+  background: linear-gradient(165deg, rgba(224, 118, 90, 0.12), rgba(255, 255, 255, 0.03));
+}
+
+.liveagent-falcon {
+  width: 76px;
+  height: 76px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.liveagent-falcon .mascot {
+  width: 92px !important;
+  height: auto;
+}
+
+.liveagent-body {
+  min-width: 0;
+  animation: rise 0.4s var(--ease) both;
+}
+
+.liveagent-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--faint);
+  margin-bottom: 5px;
+}
+
+.liveagent-body b {
+  display: block;
+  font-size: 15px;
+  letter-spacing: -0.01em;
+}
+
+.liveagent-body > span:last-child {
+  display: block;
+  font-size: 12.5px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+/* the refusing falcon in place of the held ✕ */
+.held-falcon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  background: var(--held-soft);
+}
+
+.held-falcon .mascot {
+  width: 40px !important;
+  height: auto;
+}
+
 
 /* a watching presence in the browse header */
 .mk-falcon {
