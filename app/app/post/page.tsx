@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { AppBar, TabBar } from "../../components/AppChrome";
+import { Upload } from "../../components/Upload";
 import { TASK_TYPES, usd, FEE_BPS, type TaskType } from "../../lib/data";
 
 /**
@@ -23,6 +24,7 @@ const KIND_RESULT: Record<TaskType, string> = {
 
 export default function PostCampaign() {
   const [type, setType] = useState<TaskType>("referral");
+  const [banner, setBanner] = useState("");
   const [result, setResult] = useState("");
   const [rate, setRate] = useState(2);
   const [budget, setBudget] = useState(500);
@@ -77,6 +79,13 @@ export default function PostCampaign() {
 
       <div className="two-up">
         <div className="fade-up d1">
+          <Field label="Campaign image">
+            <Upload shape="banner" value={banner} onChange={setBanner} label="Add a campaign image" />
+            <p className="tiny" style={{ marginTop: 8 }}>
+              Shown on your card in the marketplace. A clear image gets more promoters.
+            </p>
+          </Field>
+
           <Field label="What do you want people to do?">
             <div className="post-types">
               {TASK_TYPES.map((t) => (

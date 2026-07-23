@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { AppBar, TabBar } from "../../components/AppChrome";
+import { useProfile } from "../../components/Profile";
 import {
   allCampaigns,
   INDUSTRIES,
@@ -31,6 +32,7 @@ import {
  * columns on a laptop, one on a phone where the filters fold into a sheet.
  */
 export default function Browse() {
+  const { profile } = useProfile();
   const [query, setQuery] = useState("");
   const [type, setType] = useState<TaskType | "all">("all");
   const [industries, setIndustries] = useState<Set<Industry>>(new Set());
@@ -62,6 +64,13 @@ export default function Browse() {
   }
 
   const activeFilters = industries.size + efforts.size + (verify !== "all" ? 1 : 0) + (minPay > 0 ? 1 : 0);
+
+  // Campaigns matching the strengths a tasker picked at sign-up — shown as a
+  // "recommended for you" row when they have a profile and haven't searched.
+  const recommended =
+    profile.strengths.length && !query && type === "all"
+      ? allCampaigns.filter((c) => profile.strengths.includes(c.industry)).slice(0, 3)
+      : [];
 
   const filters = (
     <>
@@ -154,6 +163,20 @@ export default function Browse() {
           </button>
         ))}
       </div>
+
+      {recommended.length > 0 && (
+        <section className="mk-reco fade-up d1">
+          <div className="sec-head">
+            <span>Recommended for you</span>
+            <span className="tiny">Based on {profile.strengths.slice(0, 2).join(", ")}</span>
+          </div>
+          <div className="mk-reco-row">
+            {recommended.map((c) => (
+              <CampaignCard key={c.id} c={c} />
+            ))}
+          </div>
+        </section>
+      )}
 
       <div className="mk-body">
         <aside className="mk-rail">{filters}</aside>

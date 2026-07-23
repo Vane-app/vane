@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { AppBar, TabBar } from "../../components/AppChrome";
+import { useProfile } from "../../components/Profile";
 import { me, performance, usd } from "../../lib/data";
 
 /**
@@ -12,6 +13,9 @@ import { me, performance, usd } from "../../lib/data";
  * faster payouts, so it leads.
  */
 export default function Account() {
+  const { profile } = useProfile();
+  const avatar = profile.avatar || me.avatar;
+  const displayName = profile.name || me.name;
   const lifetime = performance.reduce((s, p) => s + p.earned, 0);
   const results = performance.reduce((s, p) => s + p.results, 0);
   const clicks = performance.reduce((s, p) => s + p.clicks, 0);
@@ -23,10 +27,10 @@ export default function Account() {
 
       <header className="acct-head fade-up">
         <span className="face-ring" style={{ padding: 3 }}>
-          <img className="face" src={me.avatar} alt="" width={72} height={72} />
+          <img className="face" src={avatar} alt="" width={72} height={72} />
         </span>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <h1 style={{ fontSize: 25, letterSpacing: "-.02em" }}>{me.name}</h1>
+          <h1 style={{ fontSize: 25, letterSpacing: "-.02em" }}>{displayName}</h1>
           <p className="tiny" style={{ marginTop: 3 }}>
             {me.handle} · earning since {me.since}
           </p>

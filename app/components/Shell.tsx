@@ -47,7 +47,8 @@ const NAV: Record<Mode, { href: string; label: string; icon: React.ReactNode }[]
 /** The primary landing page for each mode, used when the toggle is switched. */
 const HOME: Record<Mode, string> = { earning: "/tasks", advertising: "/business" };
 
-const BARE = ["/", "/preview"];
+/** Full-window routes with no app chrome: marketing, onboarding, the preview. */
+const BARE = ["/", "/preview", "/start", "/join/tasker", "/join/business"];
 
 export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
