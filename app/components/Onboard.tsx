@@ -1,59 +1,24 @@
 "use client";
 
-import { Mark } from "./Falcon";
 import { Mascot } from "./Mascot";
 
 /**
- * Onboarding frame.
+ * Onboarding frame — one centred flow, not a split.
  *
- * Mobile: a single focused column, full-bleed — feels native.
- * Desktop: a two-panel split — a branded panel on the left that uses the width,
- * the form column on the right. This is why the flow no longer looks like a
- * phone stranded in the middle of a laptop screen.
+ * A single cohesive column on one ambient background, the falcon presiding at
+ * the top. No left/right panels, so it reads as one product rather than two
+ * halves stitched together. Same on laptop and phone; the background does the
+ * work of feeling designed rather than boxed.
  */
-export function OnboardFrame({
-  children,
-  side,
-}: {
-  children: React.ReactNode;
-  side: "earning" | "advertising";
-}) {
-  const earning = side === "earning";
+export function OnboardFrame({ children }: { children: React.ReactNode; side?: "earning" | "advertising" }) {
   return (
-    <div className="obwrap">
-      <aside className="ob-brand" aria-hidden="true">
-        <div className="ob-brand-top">
-          <Mark size={22} color="var(--amber)" />
-          <b>vane</b>
+    <div className="obone">
+      <div className="obone-inner">
+        <div className="obone-falcon">
+          <Mascot state="watching" size={132} priority />
         </div>
-
-        <div className="ob-brand-mid">
-          <Mascot state="watching" size={170} className="ob-brand-falcon" priority />
-          <h2 className="ob-brand-h">
-            {earning ? "Get paid the second the work is proven." : "Pay only for results the agent verifies."}
-          </h2>
-          <ul className="ob-brand-points">
-            {(earning
-              ? [
-                  "Paid the second a result is verified",
-                  "Keep the full rate — no fees, no minimum",
-                  "The falcon checks every result, and tells you why",
-                ]
-              : [
-                  "Your budget locks in escrow — never lost",
-                  "Fraud is refused before your money moves",
-                  "Whatever isn't earned comes back to you",
-                ]
-            ).map((p) => (
-              <li key={p}>{p}</li>
-            ))}
-          </ul>
-        </div>
-
-        <p className="ob-brand-foot">Running on Arc · settled in USDC</p>
-      </aside>
-
-      <div className="ob-form">{children}</div>
+        {children}
+      </div>
     </div>
   );
 }
