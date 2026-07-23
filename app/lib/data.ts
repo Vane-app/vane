@@ -96,7 +96,7 @@ export interface Performance {
 }
 
 export const performance: Performance[] = [
-  { campaignId: 2, business: "Nova Exchange", initial: "N", colour: "#8f5a3e", clicks: 4_182, results: 311, earned: 1_392_500_00 / 100, held: 0, live: true },
+  { campaignId: 2, business: "Nova Exchange", initial: "N", colour: "#8f5a3e", clicks: 4_182, results: 311, earned: 1_392_500_000, held: 0, live: true },
   { campaignId: 1, business: "Lumen", initial: "L", colour: "#3e6b8f", clicks: 1_940, results: 342, earned: 684_000_000, held: 4_000_000, live: true },
   { campaignId: 3, business: "Peakform", initial: "P", colour: "#5a7a4e", clicks: 806, results: 193, earned: 771_000_000, held: 8_000_000, live: false },
 ];
@@ -488,6 +488,64 @@ export function rateNote(c: Campaign): string {
 
 /** All active campaigns, one list — the marketplace's inventory. */
 export const allCampaigns: Campaign[] = [...campaigns, ...moreCampaigns];
+
+export function campaignById(id: number): Campaign | undefined {
+  return allCampaigns.find((c) => c.id === id);
+}
+
+/** The signed-in tasker. Their numbers are derived from `performance` so the
+ *  account page and the earnings dashboard always agree. */
+export const me = {
+  name: "Tunde Adeyemi",
+  handle: "@tunde",
+  since: "April 2026",
+  avatar: "https://randomuser.me/api/portraits/men/32.jpg",
+  reputation: 96, // 0–100, drives verification speed
+  streak: 12, // consecutive approved results
+};
+
+/** A business as a findable entity, not a table row. */
+export interface BusinessProfile {
+  slug: string;
+  name: string;
+  initial: string;
+  colour: string;
+  blurb: string;
+  kind: "web2" | "web3";
+  bonded: boolean;
+  since: string;
+  totalFunded: number;
+  totalPaid: number;
+  approvalRate: number;
+  disputes: number;
+  campaignIds: number[];
+}
+
+export const businesses: BusinessProfile[] = [
+  {
+    slug: "nova-exchange", name: "Nova Exchange", initial: "N", colour: "#8f5a3e", blurb: "Onchain trading platform",
+    kind: "web3", bonded: true, since: "January 2026", totalFunded: 5_000_000_000, totalPaid: 820_000_000,
+    approvalRate: 0.97, disputes: 1, campaignIds: [2],
+  },
+  {
+    slug: "lumen", name: "Lumen", initial: "L", colour: "#3e6b8f", blurb: "Savings app",
+    kind: "web2", bonded: false, since: "March 2026", totalFunded: 500_000_000, totalPaid: 158_000_000,
+    approvalRate: 0.93, disputes: 0, campaignIds: [1],
+  },
+  {
+    slug: "peakform", name: "Peakform", initial: "P", colour: "#5a7a4e", blurb: "Fitness app",
+    kind: "web2", bonded: false, since: "May 2026", totalFunded: 800_000_000, totalPaid: 552_000_000,
+    approvalRate: 0.88, disputes: 0, campaignIds: [3],
+  },
+];
+
+export function businessBySlug(slug: string): BusinessProfile | undefined {
+  return businesses.find((b) => b.slug === slug);
+}
+
+export function slugFor(name: string): string {
+  return name.toLowerCase().replace(/\s+/g, "-");
+}
 
 export const INDUSTRIES: Industry[] = Array.from(new Set(allCampaigns.map((c) => c.industry))).sort() as Industry[];
 

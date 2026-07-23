@@ -16,7 +16,7 @@ export default function Earnings() {
   const lifetime = performance.reduce((s, p) => s + p.earned, 0);
   const pending = performance.reduce((s, p) => s + p.held, 0);
 
-  const [available, setAvailable] = useState(2_847_500_00 / 100);
+  const [available, setAvailable] = useState(2_847_500_000);
   const [drip, setDrip] = useState(0);
 
   useEffect(() => {

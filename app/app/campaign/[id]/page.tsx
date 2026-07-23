@@ -15,6 +15,7 @@ import {
   poolPercent,
   remaining,
   daysLeft,
+  slugFor,
 } from "../../../lib/data";
 
 /**
@@ -154,6 +155,13 @@ export default function CampaignPage() {
               Budget is held in escrow by contract. If the campaign ends unspent, the remainder returns to{" "}
               {c.business} automatically — it is never held by Vane.
             </p>
+            <Link
+              href={`/business/${slugFor(c.business)}`}
+              className="tiny"
+              style={{ display: "inline-block", marginTop: 12, color: "var(--amber)", fontWeight: 700 }}
+            >
+              View {c.business}&rsquo;s profile →
+            </Link>
           </Block>
         </div>
 

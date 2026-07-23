@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Shell } from "../components/Shell";
+import { ModeProvider } from "../components/Mode";
 
 export const metadata: Metadata = {
   title: "Vane — get paid the moment work is proven",
@@ -16,7 +17,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en">
       <body>
-        <Shell>{children}</Shell>
+        <ModeProvider>
+          <Shell>{children}</Shell>
+        </ModeProvider>
       </body>
     </html>
   );
