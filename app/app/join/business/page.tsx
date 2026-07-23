@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Falcon, Mark } from "../../../components/Falcon";
 import { useProfile } from "../../../components/Profile";
 import { Upload } from "../../../components/Upload";
+import { OnboardFrame } from "../../../components/Onboard";
 import { INDUSTRIES, usd, type Industry } from "../../../lib/data";
 
 /**
@@ -59,7 +60,7 @@ export default function BusinessOnboarding() {
   }
 
   return (
-    <main className="screen ob">
+    <OnboardFrame side="advertising">
       <header className="ob-top">
         <span className="row" style={{ gap: 9 }}>
           <Mark size={20} color="var(--amber)" />
@@ -202,7 +203,7 @@ export default function BusinessOnboarding() {
           </button>
         </div>
       )}
-    </main>
+    </OnboardFrame>
   );
 }
 

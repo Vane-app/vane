@@ -7,19 +7,19 @@ import { Mark } from "../../components/Falcon";
  */
 export default function Start() {
   return (
-    <main className="screen" style={{ justifyContent: "center", paddingBottom: 40 }}>
-      <div className="fade-up" style={{ marginBottom: 34 }}>
-        <span className="row" style={{ gap: 10, marginBottom: 34 }}>
+    <main className="startpage">
+      <div className="fade-up" style={{ textAlign: "center", marginBottom: 34 }}>
+        <span className="row" style={{ gap: 10, marginBottom: 30, justifyContent: "center" }}>
           <Mark size={26} color="var(--amber)" />
           <b style={{ fontSize: 25, letterSpacing: "-.04em" }}>vane</b>
         </span>
-        <h1 style={{ fontSize: 32, lineHeight: 1.06 }}>Which side are you on?</h1>
-        <p className="sub" style={{ fontSize: 14.5, marginTop: 10, maxWidth: "30ch" }}>
+        <h1 style={{ fontSize: "clamp(30px, 4vw, 44px)", lineHeight: 1.05 }}>Which side are you on?</h1>
+        <p className="sub" style={{ fontSize: 15, marginTop: 12, maxWidth: "34ch", marginInline: "auto" }}>
           You can switch later. Nothing here needs a card or a wallet.
         </p>
       </div>
 
-      <nav className="stack" style={{ gap: 12 }} aria-label="Choose how you use Vane">
+      <nav className="start-choices" aria-label="Choose how you use Vane">
         <Link href="/join/tasker" className="card fade-up d1" style={{ display: "block" }}>
           <span className="row" style={{ gap: 14 }}>
             <span className="choice-ic" aria-hidden="true">

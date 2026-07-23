@@ -2180,11 +2180,177 @@ h3 {
   text-align: center;
 }
 
+/* -------------------------------------------------------------- role select */
+
+.startpage {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 40px 22px;
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.start-choices {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  width: 100%;
+}
+
+.start-choices .card {
+  display: block;
+  transition: transform 0.2s var(--ease), box-shadow 0.2s var(--ease);
+}
+
+.start-choices .card:hover {
+  transform: translateY(-3px);
+  box-shadow: inset 0 0 0 1.5px var(--amber), 0 20px 44px -24px rgba(0, 0, 0, 0.9);
+}
+
+@media (min-width: 720px) {
+  .start-choices {
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  /* side-by-side cards read as a real fork, not a stacked mobile list */
+  .start-choices .card {
+    padding: 26px 24px;
+  }
+}
+
 /* ------------------------------------------------------------- onboarding */
+
+/* Mobile: one focused full-bleed column. Desktop: brand panel left, form right.
+   Never a phone-width column marooned in the middle of a laptop screen. */
+.obwrap {
+  min-height: 100dvh;
+}
+
+.ob-brand {
+  display: none;
+}
+
+.ob-form {
+  min-height: 100dvh;
+  max-width: 460px;
+  margin: 0 auto;
+  padding: 0 22px;
+  display: flex;
+  flex-direction: column;
+}
 
 .ob {
   justify-content: flex-start;
   max-width: 460px;
+}
+
+@media (min-width: 900px) {
+  .obwrap {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .ob-brand {
+    display: flex;
+    flex-direction: column;
+    padding: 44px clamp(40px, 4vw, 72px);
+    background: radial-gradient(700px 460px at 30% 20%, rgba(240, 169, 75, 0.14), transparent 62%),
+      linear-gradient(160deg, #0c1620, #0a1218 60%);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .ob-brand-top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .ob-brand-top b {
+    font-size: 21px;
+    letter-spacing: -0.04em;
+  }
+
+  .ob-brand-mid {
+    margin: auto 0;
+    max-width: 30ch;
+  }
+
+  .ob-brand-h {
+    font-size: clamp(26px, 2.6vw, 38px);
+    line-height: 1.08;
+    letter-spacing: -0.035em;
+    margin: 22px 0 24px;
+  }
+
+  .ob-brand-points {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .ob-brand-points li {
+    position: relative;
+    padding-left: 26px;
+    font-size: 14.5px;
+    color: var(--muted);
+  }
+
+  .ob-brand-points li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 7px;
+    width: 12px;
+    height: 7px;
+    border-left: 2px solid var(--amber);
+    border-bottom: 2px solid var(--amber);
+    transform: rotate(-45deg);
+  }
+
+  .ob-brand-foot {
+    margin: 0;
+    font-size: 12.5px;
+    color: var(--faint);
+  }
+
+  .ob-form {
+    min-height: 100dvh;
+    max-width: none;
+    margin: 0;
+    padding: 44px clamp(40px, 5vw, 96px);
+    justify-content: center;
+  }
+
+  /* the form's own column inside the right panel */
+  .ob-form > .ob-top,
+  .ob-form > .ob-panel,
+  .ob-form > .ob-done {
+    width: 100%;
+    max-width: 440px;
+    margin-inline: 0;
+  }
+
+  .ob-form > .ob-top {
+    position: absolute;
+    top: 44px;
+    left: clamp(40px, 5vw, 96px);
+    right: clamp(40px, 5vw, 96px);
+    max-width: none;
+    padding: 0;
+  }
+
+  /* the brand panel already shows the logo, so hide the form's on desktop */
+  .ob-form > .ob-top > span:first-child {
+    visibility: hidden;
+  }
 }
 
 .ob-top {
