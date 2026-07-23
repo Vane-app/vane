@@ -1,6 +1,7 @@
 "use client";
 
-import { Falcon, Mark } from "./Falcon";
+import { Mark } from "./Falcon";
+import { Mascot } from "./Mascot";
 
 /**
  * Onboarding frame.
@@ -27,7 +28,7 @@ export function OnboardFrame({
         </div>
 
         <div className="ob-brand-mid">
-          <Falcon mode="fly" size={190} />
+          <Mascot state="watching" size={170} className="ob-brand-falcon" priority />
           <h2 className="ob-brand-h">
             {earning ? "Get paid the second the work is proven." : "Pay only for results the agent verifies."}
           </h2>

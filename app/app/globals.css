@@ -2119,6 +2119,41 @@ h3 {
   color: var(--held);
 }
 
+/* ---------------------------------------------------------------- mascot */
+/* The renders carry a near-black ground with an amber glow. `lighten` drops that
+   black against the app's dark surfaces so only the lit falcon and its glow show,
+   no rectangular edge — without needing transparent PNGs. */
+.mascot {
+  display: block;
+  mix-blend-mode: lighten;
+}
+
+.paid-falcon {
+  width: max-content;
+}
+
+/* onboarding brand panel falcon */
+.ob-brand-falcon {
+  margin: 0 0 -6px -14px;
+}
+
+/* a watching presence in the browse header */
+.mk-falcon {
+  display: none;
+}
+
+@media (min-width: 900px) {
+  .mk-falcon {
+    display: block;
+    position: absolute;
+    top: -10px;
+    right: 0;
+    width: 132px;
+    pointer-events: none;
+    opacity: 0.9;
+  }
+}
+
 /* ------------------------------------------------------------- image upload */
 
 .upload {
@@ -2277,14 +2312,17 @@ h3 {
 
   .ob-brand-mid {
     margin: auto 0;
-    max-width: 30ch;
+    max-width: 32ch;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
   }
 
   .ob-brand-h {
-    font-size: clamp(26px, 2.6vw, 38px);
+    font-size: clamp(24px, 2.3vw, 34px);
     line-height: 1.08;
     letter-spacing: -0.035em;
-    margin: 22px 0 24px;
+    margin: 14px 0 20px;
   }
 
   .ob-brand-points {

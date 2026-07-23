@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Mark } from "../../components/Falcon";
+import { Mascot } from "../../components/Mascot";
 
 /**
  * The payout moment.
@@ -28,14 +29,26 @@ export default function Paid() {
 
   return (
     <main className="screen" style={{ justifyContent: "center", textAlign: "center", paddingBottom: 36 }}>
-      <span className="row fade-up" style={{ gap: 9, justifyContent: "center", marginBottom: 40 }}>
+      <span className="row fade-up" style={{ gap: 9, justifyContent: "center", marginBottom: 18 }}>
         <Mark size={20} color="var(--amber)" />
         <b style={{ fontSize: 19, letterSpacing: "-.04em" }}>vane</b>
       </span>
 
       <div
+        className="paid-falcon"
         style={{
-          transition: "opacity .6s var(--ease), transform .6s var(--ease)",
+          margin: "0 auto",
+          transition: "opacity .7s var(--ease), transform .7s var(--ease)",
+          opacity: amountIn ? 1 : 0,
+          transform: amountIn ? "none" : "translateX(-30%) scale(.9)",
+        }}
+      >
+        <Mascot state="approving" size={150} priority />
+      </div>
+
+      <div
+        style={{
+          transition: "opacity .6s var(--ease) .2s, transform .6s var(--ease) .2s",
           opacity: amountIn ? 1 : 0,
           transform: amountIn ? "none" : "translateY(16px) scale(.94)",
         }}
