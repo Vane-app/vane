@@ -22,6 +22,17 @@ export interface Profile {
   strengths: Industry[];
   channels: Channel[];
   socials: string[]; // connected platform names
+
+  /** Business side — set when someone onboards as (or also becomes) a business. */
+  business?: {
+    onboarded: boolean;
+    name: string;
+    logo: string; // data URL
+    industry: Industry;
+    kind: "web2" | "web3";
+    funded: number; // 6dp USDC added to the escrow wallet
+    bond: number; // 6dp staked; > 0 earns the Bonded badge
+  };
 }
 
 const EMPTY: Profile = { onboarded: false, email: "", name: "", avatar: "", strengths: [], channels: [], socials: [] };
