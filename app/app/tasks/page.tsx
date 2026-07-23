@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { AppBar, TabBar } from "../../components/AppChrome";
-import { Mascot } from "../../components/Mascot";
 import { useProfile } from "../../components/Profile";
 import {
   allCampaigns,
@@ -124,7 +123,7 @@ export default function Browse() {
     <main className="screen">
       <AppBar />
 
-      <header className="mk-head fade-up" style={{ position: "relative" }}>
+      <header className="mk-head fade-up">
         <div>
           <h1 style={{ fontSize: 28, lineHeight: 1.1 }}>Discover campaigns</h1>
           <p className="sub" style={{ fontSize: 13.5, marginTop: 5, maxWidth: "42ch" }}>
@@ -134,7 +133,6 @@ export default function Browse() {
         <Link href="/post" className="btn btn-amber mk-post">
           Post a campaign
         </Link>
-        <Mascot state="watching" size={120} className="mk-falcon" />
       </header>
 
       <div className="mk-search fade-up d1">

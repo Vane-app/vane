@@ -2210,22 +2210,6 @@ h3 {
 }
 
 
-/* a watching presence in the browse header */
-.mk-falcon {
-  display: none;
-}
-
-@media (min-width: 900px) {
-  .mk-falcon {
-    display: block;
-    position: absolute;
-    top: -10px;
-    right: 0;
-    width: 132px;
-    pointer-events: none;
-    opacity: 0.9;
-  }
-}
 
 /* ------------------------------------------------------------- image upload */
 
