@@ -2376,6 +2376,12 @@ h3 {
     margin-inline: 0;
   }
 
+  /* the step must not stretch to full height, or it pins to the top and looks
+     detached from the brand panel — it sits centred so both halves align. */
+  .ob-form > .ob-panel {
+    flex: 0 0 auto;
+  }
+
   .ob-form > .ob-top {
     position: absolute;
     top: 44px;
