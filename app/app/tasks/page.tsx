@@ -54,8 +54,17 @@ export default function Browse() {
       if (q && ![c.business, c.blurb, c.industry, c.taskType].some((f) => f.toLowerCase().includes(q))) return false;
       return true;
     });
-    return sortCampaigns(list, sort);
-  }, [query, type, industries, efforts, verify, minPay, sort]);
+    const sorted = sortCampaigns(list, sort);
+    // Under "best match", campaigns that fit the tasker's strengths lead the grid
+    // — recommendations folded into the marketplace, not a separate duplicated row.
+    if (sort === "top" && profile.strengths.length) {
+      const strong = new Set(profile.strengths);
+      return [...sorted].sort((a, b) => Number(strong.has(b.industry)) - Number(strong.has(a.industry)));
+    }
+    return sorted;
+  }, [query, type, industries, efforts, verify, minPay, sort, profile.strengths]);
+
+  const forYou = new Set(profile.strengths);
 
   function toggle<T>(set: Set<T>, value: T, apply: (s: Set<T>) => void) {
     const next = new Set(set);
@@ -64,13 +73,6 @@ export default function Browse() {
   }
 
   const activeFilters = industries.size + efforts.size + (verify !== "all" ? 1 : 0) + (minPay > 0 ? 1 : 0);
-
-  // Campaigns matching the strengths a tasker picked at sign-up — shown as a
-  // "recommended for you" row when they have a profile and haven't searched.
-  const recommended =
-    profile.strengths.length && !query && type === "all"
-      ? allCampaigns.filter((c) => profile.strengths.includes(c.industry)).slice(0, 3)
-      : [];
 
   const filters = (
     <>
@@ -164,20 +166,6 @@ export default function Browse() {
         ))}
       </div>
 
-      {recommended.length > 0 && (
-        <section className="mk-reco fade-up d1">
-          <div className="sec-head">
-            <span>Recommended for you</span>
-            <span className="tiny">Based on {profile.strengths.slice(0, 2).join(", ")}</span>
-          </div>
-          <div className="mk-reco-row">
-            {recommended.map((c) => (
-              <CampaignCard key={c.id} c={c} />
-            ))}
-          </div>
-        </section>
-      )}
-
       <div className="mk-body">
         <aside className="mk-rail">{filters}</aside>
 
@@ -228,7 +216,7 @@ export default function Browse() {
           ) : (
             <div className="mk-grid">
               {filtered.map((c) => (
-                <CampaignCard key={c.id} c={c} />
+                <CampaignCard key={c.id} c={c} forYou={forYou.has(c.industry)} />
               ))}
             </div>
           )}
@@ -255,7 +243,7 @@ export default function Browse() {
   );
 }
 
-function CampaignCard({ c }: { c: Campaign }) {
+function CampaignCard({ c, forYou }: { c: Campaign; forYou?: boolean }) {
   const typeLabel = TASK_TYPES.find((t) => t.id === c.taskType)?.label ?? "";
   return (
     <Link href={`/campaign/${c.id}`} className="mk-card fade-up">
@@ -269,6 +257,7 @@ function CampaignCard({ c }: { c: Campaign }) {
             {c.industry}
           </span>
         </div>
+        {forYou && <span className="badge badge-foryou">For you</span>}
         {c.bonded && <span className="badge badge-bonded">Bonded</span>}
       </div>
 

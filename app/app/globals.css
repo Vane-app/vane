@@ -3781,6 +3781,15 @@ h3 {
   text-transform: uppercase;
 }
 
+.badge-foryou {
+  background: var(--verified-soft);
+  color: var(--verified);
+  font-size: 9.5px;
+  padding: 3px 8px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 /* ------------------------------------------------------------- decisions */
 
 .event {
