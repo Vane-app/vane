@@ -1,0 +1,295 @@
+<title>Vane — Pitch Deck</title>
+<style>
+  :root{
+    --night:#0a1218; --ink:#f3f6f7; --muted:#9aa6ae; --faint:#6d7a83;
+    --amber:#f0a94b; --amber-deep:#f6c581; --line:rgba(255,255,255,.09);
+    --verified:#4fc08d; --held:#e0765a;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;height:100%;overflow:hidden}
+  body{
+    background:var(--night); color:var(--ink);
+    font-family:ui-rounded,"SF Pro Rounded",-apple-system,"Segoe UI",system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased; line-height:1.5; height:100vh;
+  }
+  .num{font-variant-numeric:tabular-nums}
+  img{display:block;max-width:100%}
+
+  /* One slide shown at a time — like presentation software. Bulletproof: no
+     scrolling, always lands cleanly. */
+  .slide{
+    position:absolute; inset:0;
+    padding:clamp(28px,5vh,60px) clamp(28px,6vw,104px);
+    display:flex; flex-direction:column; justify-content:center; overflow:hidden;
+    background:radial-gradient(1000px 640px at 84% 6%, rgba(240,169,75,.07), transparent 60%);
+    opacity:0; visibility:hidden; transform:translateY(12px);
+    transition:opacity .45s ease, transform .45s ease, visibility .45s;
+  }
+  .slide.on{opacity:1; visibility:visible; transform:none}
+  .kick{font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--amber);margin:0 0 16px}
+  h1{font-size:clamp(34px,4.6vw,68px);line-height:1.01;letter-spacing:-.04em;margin:0 0 20px;font-weight:800;max-width:15ch}
+  h2{font-size:clamp(26px,3.1vw,44px);line-height:1.06;letter-spacing:-.035em;margin:0 0 18px;font-weight:800;max-width:20ch}
+  .lede{font-size:clamp(15.5px,1.35vw,20px);line-height:1.5;color:var(--muted);max-width:54ch;margin:0}
+  .snum{position:absolute;top:clamp(24px,4vh,48px);right:clamp(28px,6vw,104px);font-size:13px;color:var(--faint);font-weight:700}
+  .brandrow{display:flex;align-items:center;gap:10px}
+  .brandrow b{font-size:19px;letter-spacing:-.04em}
+  .mark{width:26px;height:26px;flex-shrink:0}
+
+  /* split: text on one side, a visual on the other */
+  .split{display:grid;grid-template-columns:1fr;gap:clamp(24px,4vw,64px);align-items:center;height:100%}
+  @media(min-width:900px){
+    .split{grid-template-columns:1fr 1fr}
+    .split.wide-r{grid-template-columns:1fr 1.15fr}
+    .split.wide-l{grid-template-columns:1.15fr 1fr}
+  }
+  .split-txt{display:flex;flex-direction:column;justify-content:center}
+
+  /* product screenshot in a clean frame */
+  .shot{border-radius:14px;overflow:hidden;box-shadow:0 30px 70px -30px rgba(0,0,0,.9), inset 0 0 0 1px var(--line)}
+  .shot img{width:100%;height:auto;display:block}
+  .shot-cap{font-size:12.5px;color:var(--faint);margin-top:12px;text-align:center}
+
+  /* falcon mascot — lighten blend drops its dark ground onto the slide */
+  .falcon{mix-blend-mode:lighten;width:100%;height:auto}
+  .falcon-wrap{display:flex;justify-content:center;align-items:center}
+
+  .cols{display:grid;grid-template-columns:1fr;gap:clamp(18px,3vw,36px);margin-top:14px}
+  @media(min-width:760px){.cols-3{grid-template-columns:repeat(3,1fr)}}
+  .card{border-top:2px solid var(--line);padding-top:16px}
+  .card h3{font-size:18px;letter-spacing:-.02em;margin:0 0 8px}
+  .card p{font-size:14px;color:var(--muted);margin:0;line-height:1.55}
+  .cardnum{font-size:11.5px;font-weight:800;letter-spacing:.1em;color:var(--amber);margin-bottom:10px;display:block}
+
+  ul.pts{list-style:none;margin:16px 0 0;padding:0}
+  ul.pts li{position:relative;padding:10px 0 10px 28px;font-size:15.5px;color:#c4cfd5;border-bottom:1px solid var(--line)}
+  ul.pts li::before{content:"";position:absolute;left:2px;top:16px;width:11px;height:6px;border-left:2px solid var(--amber);border-bottom:2px solid var(--amber);transform:rotate(-45deg)}
+  ul.pts b{color:var(--ink)}
+
+  .term{display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid var(--line);font-size:15px}
+  .dot{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:13px;flex-shrink:0}
+  .dot-ok{background:rgba(79,192,141,.14);color:var(--verified)}
+  .dot-no{background:rgba(224,118,90,.14);color:var(--held)}
+  .term .amt{margin-left:auto;font-weight:800;white-space:nowrap}
+  .term .amt.ok{color:var(--verified)} .term .amt.no{color:var(--held)}
+  .term span{color:var(--muted);font-size:12.5px;display:block}
+
+  .stack-grid{display:grid;grid-template-columns:1fr;gap:12px;margin-top:8px}
+  @media(min-width:760px){.stack-grid{grid-template-columns:1fr 1fr}}
+  .srow{display:flex;gap:12px;padding:13px 0;border-bottom:1px solid var(--line)}
+  .srow b{font-size:14.5px;display:block;margin-bottom:3px;letter-spacing:-.01em}
+  .srow p{margin:0;font-size:12.5px;color:var(--muted);line-height:1.45}
+  .schip{font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--amber-deep);background:rgba(240,169,75,.14);border-radius:100px;padding:4px 9px;height:max-content;white-space:nowrap;flex-shrink:0}
+
+  .figrow{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:22px 40px;margin-top:10px}
+  .fig b{display:block;font-size:clamp(34px,4vw,56px);font-weight:800;letter-spacing:-.04em;line-height:1;background:linear-gradient(180deg,#ffd9a0,var(--amber));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .fig span{font-size:13.5px;color:var(--muted);margin-top:8px;display:block;max-width:22ch}
+
+  .demo{background:rgba(255,255,255,.04);border-radius:14px;padding:18px 20px;box-shadow:inset 0 0 0 1px var(--line);margin-top:8px;font-size:14px}
+  .demo .step{padding:9px 0;border-bottom:1px solid var(--line);display:flex;gap:12px;align-items:baseline}
+  .demo .step:last-child{border-bottom:none}
+  .demo .n{color:var(--amber);font-weight:800;flex-shrink:0}
+  .demo code{color:var(--verified);font-size:13px} .demo .held{color:var(--held)}
+
+  .tag{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:700;color:var(--faint);border:1px solid var(--line);border-radius:100px;padding:7px 15px;margin:6px 8px 0 0}
+  .tag.on{color:var(--amber);border-color:rgba(240,169,75,.4);background:rgba(240,169,75,.08)}
+  .foot{margin-top:26px;font-size:13px;color:var(--faint)} .foot a{color:var(--amber);text-decoration:none}
+
+  .dots{position:fixed;right:20px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:9px;z-index:20}
+  .dots button{width:8px;height:8px;border-radius:50%;border:none;padding:0;background:rgba(255,255,255,.22);cursor:pointer;transition:all .2s}
+  .dots button.on{background:var(--amber);transform:scale(1.4)}
+  .hint{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);font-size:10.5px;color:var(--faint);letter-spacing:.1em;text-transform:uppercase;pointer-events:none;opacity:.55;z-index:20}
+  @media(max-width:640px){.dots{display:none}}
+</style>
+
+<!-- 1 — TITLE -->
+<section class="slide">
+  <span class="snum">Vane</span>
+  <div class="split wide-l">
+    <div class="split-txt">
+      <div class="brandrow" style="margin-bottom:26px">
+        <svg class="mark" viewBox="0 0 48 48"><path fill="#f0a94b" fill-rule="evenodd" d="M24 46 L6 7 C13 14.5 18.5 17 24 16 C29.5 17 35 14.5 42 7 Z M24 38 L15.5 19 C18.5 21.3 21.2 22.2 24 21.8 C26.8 22.2 29.5 21.3 32.5 19 Z"/></svg>
+        <b>vane</b>
+      </div>
+      <p class="kick">Programmable Money Hackathon · Build on Arc</p>
+      <h1>Get paid the second the work is proven.</h1>
+      <p class="lede">A marketing &amp; task marketplace on Arc, run by an autonomous falcon agent. Businesses lock USDC in escrow; taskers bring real customers; the agent verifies every result and settles in ~1 second — or refuses fraud with a written reason.</p>
+      <p class="foot">Agentic Economy · DeFi &nbsp;|&nbsp; <a href="https://github.com/Vane-app/vane">github.com/Vane-app/vane</a></p>
+    </div>
+    <div class="falcon-wrap"><img class="falcon" src="/mascot/watching.png" alt="The Vane falcon" style="max-width:340px"></div>
+  </div>
+</section>
+
+<!-- 2 — PROBLEM -->
+<section class="slide">
+  <span class="snum">02</span>
+  <p class="kick">The problem</p>
+  <h2>Performance marketing runs on distrust, delay, and a 30% tax.</h2>
+  <div class="cols cols-3">
+    <div class="card"><span class="cardnum">SLOW</span><h3>Paid last</h3><p>Affiliate networks settle on Net-30 to Net-60 terms and hold your money behind payout minimums.</p></div>
+    <div class="card"><span class="cardnum">EXPENSIVE</span><h3>20–30% taken</h3><p>The whole fee stack exists to referee two parties who can't verify each other.</p></div>
+    <div class="card"><span class="cardnum">UNACCOUNTABLE</span><h3>Attribution disputes</h3><p>Who drove the sale is decided after the fact by whoever owns the dashboard. Businesses pay blind.</p></div>
+  </div>
+</section>
+
+<!-- 3 — SOLUTION -->
+<section class="slide">
+  <span class="snum">03</span>
+  <p class="kick">The solution</p>
+  <h2>Escrowed USDC + an autonomous agent turns the referee into software.</h2>
+  <p class="lede">Sub-second settlement and USDC-denominated gas on Arc make it possible to pay per verified result — instantly, at near-zero cost, down to sub-cent revenue-share. The contract holds the money; the agent releases it. Neither side trusts the other.</p>
+  <ul class="pts" style="max-width:64ch">
+    <li><b>Budgets lock in escrow</b> before anyone promotes — no working on a promise.</li>
+    <li><b>Per-result, instant payouts</b> — a tasker earns the second a referral converts, not at month-end.</li>
+    <li><b>Unspent budget returns automatically</b>, permissionlessly, even if Vane disappears.</li>
+    <li><b>No wallet, no seed phrase, no jargon</b> — Circle Wallets creates accounts invisibly.</li>
+  </ul>
+</section>
+
+<!-- 4 — HOW IT WORKS -->
+<section class="slide">
+  <span class="snum">04</span>
+  <p class="kick">How it works</p>
+  <h2>Three steps, and nobody has to trust anybody.</h2>
+  <div class="cols cols-3">
+    <div class="card"><span class="cardnum">01 · LOCKED</span><h3>A business funds a campaign</h3><p>USDC moves into the VaneEscrow contract. Nobody — not Vane, not the business — can move it. It's released only against verified results.</p></div>
+    <div class="card"><span class="cardnum">02 · PROVEN</span><h3>The referral is sealed onchain</h3><p>A tasker takes the campaign and gets a link. The referral is recorded <i>before</i> the conversion, so attribution can't be rewritten after the fact.</p></div>
+    <div class="card"><span class="cardnum">03 · PAID</span><h3>The falcon settles or refuses</h3><p>Verified results pay out in ~1s. Fraud is refused with a written reason — which keeps the pot intact for everyone honest.</p></div>
+  </div>
+</section>
+
+<!-- 5 — THE AGENT -->
+<section class="slide">
+  <span class="snum">05</span>
+  <div class="split wide-r">
+    <div class="falcon-wrap"><img class="falcon" src="/mascot/refusing.png" alt="The falcon refusing fraud" style="max-width:300px"></div>
+    <div class="split-txt">
+      <p class="kick">The falcon — the agent in charge</p>
+      <h2>It pays honest work and refuses the rest, with reasons.</h2>
+      <p class="lede" style="margin-bottom:18px">Every claim is scored against real onchain evidence — not a rubber stamp. Deterministic checks decide the vast majority, so cost and latency stay flat at scale.</p>
+      <div class="term"><span class="dot dot-ok">✓</span><div><b>Referral traced · account stayed active</b><span>time-to-convert · wallet history · track record</span></div><span class="amt ok">$2.00 paid</span></div>
+      <div class="term"><span class="dot dot-no">✕</span><div><b>3 wallets made in an hour, silent since</b><span>velocity + funding-cluster detection</span></div><span class="amt no">held</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- 6 — PRODUCT: MARKETPLACE -->
+<section class="slide">
+  <span class="snum">06</span>
+  <div class="split wide-r">
+    <div class="split-txt">
+      <p class="kick">The product · built</p>
+      <h2>A real marketplace, not a mockup.</h2>
+      <p class="lede">Search, filter by task type, industry, effort and payout; recommendations from a tasker's strengths. Every card shows a funded, locked budget — the trust signal no affiliate network gives you.</p>
+    </div>
+    <div><div class="shot"><img src="/deck/marketplace.jpg" alt="Vane marketplace"></div><p class="shot-cap">Discover campaigns — live filters, real escrow-funded budgets</p></div>
+  </div>
+</section>
+
+<!-- 7 — PRODUCT: TAKE FLOW -->
+<section class="slide">
+  <span class="snum">07</span>
+  <div class="split wide-l">
+    <div><div class="shot"><img src="/deck/campaign.jpg" alt="Campaign detail and take-flow"></div><p class="shot-cap">Campaign detail — the falcon's verification method, shown per campaign</p></div>
+    <div class="split-txt">
+      <p class="kick">Take a campaign · built</p>
+      <h2>Two taps to a referral link — trustless attribution.</h2>
+      <p class="lede">A tasker reads exactly how the agent verifies this campaign (onchain for web3, integration for web2), agrees, and walks away with a link. The referral seals onchain, so nobody can dispute who drove the result.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 8 — PRODUCT: AGENT LIVE -->
+<section class="slide">
+  <span class="snum">08</span>
+  <div class="split wide-r">
+    <div class="split-txt">
+      <p class="kick">The agent, live · built</p>
+      <h2>Businesses watch the falcon work in real time.</h2>
+      <p class="lede">The dashboard shows the agent thinking, paying, and — the strongest trust signal an advertiser gets — refusing fraud with a written reason. Held claims sit beside paid ones, auditable onchain.</p>
+    </div>
+    <div><div class="shot"><img src="/deck/agent.jpg" alt="Business dashboard with the live agent"></div><p class="shot-cap">Business dashboard — the agent holding fraudulent claims, live</p></div>
+  </div>
+</section>
+
+<!-- 9 — WORKING DEMO -->
+<section class="slide">
+  <span class="snum">09</span>
+  <p class="kick">Working today — verified end to end</p>
+  <h2>Sign up → take → convert → the agent decides → paid.</h2>
+  <div class="demo" style="max-width:760px">
+    <div class="step"><span class="n">1</span><div>Sign up → real user + wallet created <code>0x2fa5…c637</code></div></div>
+    <div class="step"><span class="n">2</span><div>Take a campaign → link issued <code>vane.money/r/lumen-tunde-8oxp</code></div></div>
+    <div class="step"><span class="n">3</span><div>Honest conversion → <code>SETTLED · "referral traced, account active" · +$2.00</code></div></div>
+    <div class="step"><span class="n">4</span><div class="held">Fraud attempt → HELD · "converted 8s after first touch" · $0</div></div>
+    <div class="step"><span class="n">5</span><div>Earnings update → <code>$2.00 available · 1 verified result</code></div></div>
+  </div>
+  <p class="foot">Escrow &amp; registry contracts compile · the fraud engine runs · the full API loop works.</p>
+</section>
+
+<!-- 10 — STACK -->
+<section class="slide">
+  <span class="snum">10</span>
+  <p class="kick">Meaningful use of the Arc &amp; Circle stack</p>
+  <h2>A showcase for the whole platform, not one product.</h2>
+  <div class="stack-grid">
+    <div class="srow"><span class="schip">Live</span><div><b>Arc + USDC</b><p>All escrow and settlement on Arc. USDC as money and gas. Sub-second finality makes per-result payout possible.</p></div></div>
+    <div class="srow"><span class="schip">Live</span><div><b>Circle Wallets</b><p>Invisible seedless wallet per user. SCA accounts — required for Paymaster gas sponsorship.</p></div></div>
+    <div class="srow"><span class="schip">Built</span><div><b>Circle Contracts</b><p>Deploy &amp; call the escrow vault and referral registry. No private key on disk.</p></div></div>
+    <div class="srow"><span class="schip">Built</span><div><b>Nanopayments</b><p><code style="color:var(--amber-deep)">settleBatch</code> amortises streaming revenue-share — sub-cent payouts.</p></div></div>
+    <div class="srow"><span class="schip">Built</span><div><b>Agent Stack + x402</b><p>The falcon holds a wallet and pays for verification data in USDC — a machine economy inside the marketplace.</p></div></div>
+    <div class="srow"><span class="schip">Roadmap</span><div><b>CCTP / Gateway</b><p>Businesses fund campaigns from USDC on any chain; it bridges to Arc.</p></div></div>
+  </div>
+</section>
+
+<!-- 11 — BUSINESS MODEL -->
+<section class="slide">
+  <span class="snum">11</span>
+  <p class="kick">Business model</p>
+  <h2>One fee, charged only when everyone wins.</h2>
+  <div class="figrow">
+    <div class="fig"><b>2.5%</b><span>of settled results — the only fee. Below card rates.</span></div>
+    <div class="fig"><b>100%</b><span>of the posted rate kept by the tasker. No fee, no minimum.</span></div>
+    <div class="fig"><b>$0</b><span>moves before a result is verified. Nothing on budget that never converts.</span></div>
+  </div>
+  <p class="lede" style="margin-top:30px">Revenue is mathematically tied to both sides winning. Every campaign is programmatic USDC demand; every payout onboards a new USDC holder — an engine Circle and Arc want to see grow.</p>
+</section>
+
+<!-- 12 — CLOSE -->
+<section class="slide" style="justify-content:center;text-align:center;align-items:center">
+  <img class="falcon" src="/mascot/watching.png" alt="" style="max-width:180px;margin-bottom:8px">
+  <h2 style="max-width:22ch;margin-top:8px">Money that arrives when the work does.</h2>
+  <div><span class="tag on">Agentic Economy Track</span><span class="tag on">DeFi Track</span></div>
+  <p class="foot" style="margin-top:26px">Vane · <a href="https://github.com/Vane-app/vane">github.com/Vane-app/vane</a> · Built on Arc, settled in USDC</p>
+</section>
+
+<div class="dots" id="dots"></div>
+<div class="hint">↑ ↓ or click to advance</div>
+
+<script>
+  const slides = [...document.querySelectorAll('.slide')];
+  const dotsWrap = document.getElementById('dots');
+  let active = 0;
+  slides.forEach((s, i) => { const b=document.createElement('button'); b.setAttribute('aria-label','Slide '+(i+1)); b.onclick=()=>show(i); dotsWrap.appendChild(b); });
+  const dots = [...dotsWrap.children];
+
+  function show(i){
+    active = Math.min(slides.length-1, Math.max(0, i));
+    slides.forEach((s,k)=>s.classList.toggle('on', k===active));
+    dots.forEach((d,k)=>d.classList.toggle('on', k===active));
+    location.hash = active + 1;
+  }
+  function go(dir){ show(active + dir); }
+
+  window.addEventListener('keydown',e=>{
+    if(['ArrowDown','ArrowRight','PageDown',' '].includes(e.key)){e.preventDefault();go(1);}
+    if(['ArrowUp','ArrowLeft','PageUp'].includes(e.key)){e.preventDefault();go(-1);}
+    if(e.key==='Home'){show(0);} if(e.key==='End'){show(slides.length-1);}
+  });
+  slides.forEach(s=>s.addEventListener('click',e=>{ if(e.target.closest('a'))return; go(e.clientX>window.innerWidth*0.32?1:-1); }));
+
+  // scroll wheel / swipe also advances, one slide per gesture
+  let lock=false;
+  window.addEventListener('wheel',e=>{ if(lock)return; if(Math.abs(e.deltaY)<10)return; lock=true; go(e.deltaY>0?1:-1); setTimeout(()=>lock=false,600); }, {passive:true});
+
+  show(Math.max(0,(parseInt(location.hash.slice(1))||1)-1));
+</script>
