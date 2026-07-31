@@ -103,6 +103,14 @@ export function createUser(email: string, role: User["role"] = "tasker"): User {
   return user;
 }
 
+/** Patch a campaign — used to bind a listing to its on-chain id once known. */
+export function updateCampaign(id: number, patch: Partial<Campaign>): Campaign | undefined {
+  const c = store().campaigns.get(id);
+  if (!c) return undefined;
+  Object.assign(c, patch);
+  return c;
+}
+
 export function updateUser(id: string, patch: Partial<User>): User | undefined {
   const u = store().users.get(id);
   if (!u) return undefined;

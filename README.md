@@ -19,7 +19,7 @@ Escrowed USDC on a chain with sub-second settlement and USDC-denominated gas mak
 - **Budgets are locked before work starts**, so a tasker is never promoting on a promise.
 - **Payouts are per-result and immediate**, so sub-cent revenue-share is economically possible — a tasker earns every time a referred user trades, not once a month.
 - **Unspent budget returns automatically**, permissionlessly, even if Vane disappears.
-- **Nobody signs up for a wallet.** Circle Wallets creates accounts invisibly; Arc denominates gas in USDC. A non-crypto business completes the whole flow without meeting a crypto concept.
+- **Nobody manages a seed phrase.** Circle Wallets creates a non-custodial MPC wallet behind a PIN; Arc denominates gas in USDC. A non-crypto business completes the whole flow without meeting a crypto concept — and still holds its own keys.
 
 ## The loop
 
@@ -80,9 +80,9 @@ npm run agent
 | **Circle Wallets** (user-controlled) | Taskers and businesses. Non-custodial MPC — Vane cannot move their funds. PIN or social login at signup, no seed phrases, ever. |
 | **Circle Wallets** (developer-controlled) | The falcon's own operating wallet only. It must act autonomously, and it holds no user money. |
 | **Circle Smart Contract Platform** | Deploys and reads the vault and registry. No private key on disk. |
-| **Circle Paymaster** | Wallets are SCA so gas can be sponsored. *Not yet wired — gas is currently paid from each wallet's own USDC.* |
-| **Circle Nanopayments** (Gateway) | Gas-free USDC down to $0.000001 via x402 + EIP-3009, batched offchain. Arc Testnet supported. *The falcon's verification-data purchases are the intended fit — see below.* |
-| **`settleBatch`** | Our own on-chain batching in `VaneEscrow.sol`. Not a Circle product — many escrow payouts amortised into one transaction. |
+| **Circle Paymaster** | *Not used.* User wallets are `EOA`, chosen so Gateway/Nanopayments stays open; Paymaster sponsorship needs `SCA`. A deliberate trade, not an oversight. |
+| **Circle Nanopayments** (Gateway) | Gas-free USDC down to $0.000001 via x402 + EIP-3009, batched offchain. Arc Testnet supported, and user-controlled wallets are `EOA` specifically so this stays open. *Spec'd in `ROUTE.md` §7b, not yet built.* |
+| **`settleBatch`** | Our own on-chain batching in `VaneEscrow.sol`. Not a Circle product — many escrow payouts amortised into one transaction. Proven: 12 sub-cent payouts, one transaction. |
 | **CCTP** | Arc domain `26`. Cross-chain campaign funding — designed for, deliberately not in the MVP. |
 
 ## Trust model
@@ -139,8 +139,11 @@ Deterministic checks decide the overwhelming majority of cases, which keeps cost
 - [x] Autonomous tasker agent — a machine earning USDC per verified result
 - [x] Streaming rev-share via `settleBatch` — 12 sub-cent payouts in one transaction
 - [x] User-controlled wallets: taskers and businesses hold their own keys, and sign their own on-chain actions
-- [ ] Circle Nanopayments for gas-free sub-cent payouts
+- [x] The falcon's real decisions read off Arc and shown in the app, each linking to its transaction
+- [x] Campaigns posted in the app bind to their on-chain escrow id, and confirm against the chain
+- [ ] Circle Nanopayments for streaming rev-share campaigns
 - [ ] Conversion intake wired to the live registry
+- [ ] Deployed publicly
 
 ## Network
 
@@ -167,12 +170,13 @@ First settlement: [`0xdca9a49b…c78d68`](https://testnet.arcscan.app/tx/0xdca9a
 
 ## Run it against the live chain
 
-Three commands, three claims, each independently checkable on the explorer.
+Four commands, four claims, each independently checkable on the explorer.
 
 ```bash
 npm run e2e    -w @vane/contracts   # the loop: fund → refer → convert → settle
 npm run sybil  -w @vane/agent       # the refusal: a real sybil farm, refused on-chain
 npm run tasker -w @vane/agent       # a machine takes work and is paid for it
+npm run nano   -w @vane/agent       # streaming rev-share: 12 payouts, one transaction
 ```
 
 **`e2e`** locks USDC in escrow, claims a referral code, converts a referred wallet, and
@@ -190,5 +194,17 @@ reads the open campaign feed, prices each campaign, claims a code, brings custom
 is paid per verified result — then reports its own profit and loss. No human approves any
 step, and it is judged by exactly the same engine as a human tasker.
 
+**`nano`** settles twelve sub-cent payouts in a single `settleBatch`. The output reports
+gas as a percentage of the payout rather than claiming it is free — at $0.002 per action
+it is 77%, which is the honest number. Batching is what makes payouts that small possible
+at all; no card or bank rail can move $0.002 at any batch size, which is precisely why
+affiliate networks impose $50 minimums and monthly cycles.
+
 The same engine scored the sybil farm **80/100 → refused** and the agent's customers
 **25/100 → paid**, in consecutive runs against the same contracts.
+
+Every decision either command produces is then readable in the app: the business
+dashboard reads `Settled` and `Held` events straight off Arc, each row linking to the
+transaction that recorded it. The refusals are the point — an advertiser's deepest fear
+is paying for fraud, and the answer is a list they can verify themselves rather than a
+reassurance from us.

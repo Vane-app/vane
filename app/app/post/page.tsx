@@ -35,6 +35,7 @@ export default function PostCampaign() {
   const [locking, setLocking] = useState(false);
   const [lockStep, setLockStep] = useState<string | null>(null);
   const [postError, setPostError] = useState<string | null>(null);
+  const [funded, setFunded] = useState(false);
 
   /**
    * Locking the budget is the business's transaction, not Vane's.
@@ -65,6 +66,15 @@ export default function PostCampaign() {
           setLockStep(c.step === "approve" ? "Approve the vault…" : "Lock the budget…");
           await approve({ ...data.auth, challengeId: c.challengeId });
         }
+
+        // Confirm against the chain rather than assuming. Until the escrow agrees the
+        // budget is locked, this campaign cannot be sealed against or settled — so it
+        // must not claim to be funded.
+        setLockStep("Confirming on Arc…");
+        const check = await fetch(`/api/campaigns/${data.campaign.id}/confirm`, { method: "POST" })
+          .then((r) => r.json())
+          .catch(() => ({ funded: false }));
+        setFunded(Boolean(check.funded));
       }
       setPosted(true);
     } catch (err) {
@@ -88,8 +98,17 @@ export default function PostCampaign() {
           </span>
           <h1 style={{ fontSize: 30, lineHeight: 1.1 }}>Your campaign is live</h1>
           <p className="sub" style={{ fontSize: 15, marginTop: 12, maxWidth: "34ch", marginInline: "auto" }}>
-            {usd(budget * 1_000_000, { cents: false })} is locked in escrow. Promoters can take it now, and Vane
-            releases {usd(rate * 1_000_000)} for each verified result.
+            {funded ? (
+              <>
+                {usd(budget * 1_000_000, { cents: false })} is locked in escrow on Arc. Promoters can take it now,
+                and the falcon releases {usd(rate * 1_000_000)} for each verified result.
+              </>
+            ) : (
+              <>
+                Listed at {usd(rate * 1_000_000)} per result. The escrow funding has not confirmed on Arc yet — until
+                it does, results here cannot be settled.
+              </>
+            )}
           </p>
           <div className="stack" style={{ gap: 10, marginTop: 28, maxWidth: 360, marginInline: "auto" }}>
             <Link href="/business" className="btn btn-amber">

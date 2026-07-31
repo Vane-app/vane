@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { listCampaigns, createCampaign, getUser } from "../../../lib/store";
 import { currentUserId } from "../../../lib/session";
 import { startSession, createContractChallenge, userWalletsConfigured } from "../../../lib/circle-user";
+import { nextEscrowCampaignId } from "../../../lib/chain";
+import { updateCampaign } from "../../../lib/store";
 import type { Industry, TaskType } from "../../../lib/data";
 
 const USDC = "0x3600000000000000000000000000000000000000";
@@ -64,6 +66,20 @@ export async function POST(req: Request) {
     if (!session.ready) {
       return NextResponse.json({ campaign: c, funded: false, needsWallet: true });
     }
+
+    /**
+     * Bind the listing to its on-chain id before the business signs.
+     *
+     * `createCampaign` assigns ids sequentially, so the id this funding will receive is
+     * whatever `nextCampaignId` reads right now. Without recording it the campaign can
+     * never be sealed against or settled — which is exactly how the app's loop was
+     * silently broken while the scripts worked.
+     *
+     * Two businesses funding in the same instant would both predict the same id; the
+     * confirm step re-reads the chain and corrects it.
+     */
+    const predictedId = await nextEscrowCampaignId(escrow as `0x${string}`).catch(() => null);
+    if (predictedId !== null) updateCampaign(c.id, { escrowCampaignId: predictedId });
 
     const durationSeconds = Math.round(Number(b.durationDays ?? 30) * 86_400);
     const common = {

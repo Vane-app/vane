@@ -1,0 +1,255 @@
+import { createPublicClient, http, defineChain, parseAbi } from "viem";
+
+/**
+ * Reading Arc from the app.
+ *
+ * The falcon's decisions are already public: every settlement and every refusal is an
+ * event on VaneEscrow, carrying the reason it was given. The dashboard used to show an
+ * illustrative loop instead, which was the weakest possible version of the strongest
+ * thing here — a business's deepest fear is paying for fraud, and the answer is a list
+ * of refusals it can verify itself.
+ *
+ * Reads only. No key, no signing, nothing that can move money.
+ */
+
+export const ARC_TESTNET_ID = 5042002;
+export const EXPLORER = "https://testnet.arcscan.app";
+
+const arcTestnet = defineChain({
+  id: ARC_TESTNET_ID,
+  name: "Arc Testnet",
+  nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 18 },
+  rpcUrls: { default: { http: [process.env.ARC_RPC_URL ?? "https://rpc.testnet.arc.network"] } },
+  testnet: true,
+});
+
+export const publicClient = createPublicClient({ chain: arcTestnet, transport: http() });
+
+const escrowReads = parseAbi([
+  "function nextCampaignId() view returns (uint256)",
+  "function campaigns(uint256) view returns (address business, uint96 rewardPerAction, uint128 budget, uint128 spent, uint128 feesAccrued, uint64 endsAt, uint64 bond, uint8 status)",
+]);
+
+/**
+ * The id the next `createCampaign` will be given.
+ *
+ * A campaign posted in the app has to know its on-chain id, or nothing downstream
+ * works: the take-flow cannot seal a referral without it, and the falcon can never
+ * settle a conversion it cannot attribute. The app was creating escrow challenges and
+ * then discarding this, so campaigns posted through the UI were permanently
+ * unsettleable while the scripts worked fine.
+ *
+ * Read immediately before the funding challenge, exactly as `e2e.ts` does.
+ */
+export async function nextEscrowCampaignId(escrow: `0x${string}`): Promise<number> {
+  const id = await withRetry(() =>
+    publicClient.readContract({ address: escrow, abi: escrowReads, functionName: "nextCampaignId" }),
+  );
+  return Number(id);
+}
+
+/** Whether a campaign id actually exists on-chain and is funded — used to confirm. */
+export async function escrowCampaign(escrow: `0x${string}`, id: bigint) {
+  const c = await withRetry(() =>
+    publicClient.readContract({ address: escrow, abi: escrowReads, functionName: "campaigns", args: [id] }),
+  );
+  const [business, rewardPerAction, budget, spent, , endsAt, , status] = c;
+  return {
+    business: business as `0x${string}`,
+    rewardPerAction: String(rewardPerAction),
+    budget: String(budget),
+    spent: String(spent),
+    endsAt: Number(endsAt),
+    status: Number(status),
+    funded: BigInt(budget) > BigInt(0),
+  };
+}
+
+export const escrowEvents = parseAbi([
+  "event Settled(uint256 indexed campaignId, address indexed tasker, address indexed wallet, uint256 actionIndex, uint256 amount, uint256 fee, string reason)",
+  "event Held(uint256 indexed campaignId, address indexed wallet, uint256 actionIndex, string reason)",
+]);
+
+/**
+ * Arc's public RPC answers -32011 "request limit reached" rather than an HTTP 429, so
+ * viem's own retry does not recognise it and gives up immediately.
+ */
+export async function withRetry<T>(fn: () => Promise<T>, attempts = 5): Promise<T> {
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      // Arc phrases this several ways — "request limit reached", "rate limit exceeded",
+      // "Request exceeds defined limit" — and none of them is an HTTP 429, so viem's
+      // own retry never fires. Match the family, not one string.
+      const msg = String((err as Error)?.message ?? "").toLowerCase();
+      const limited = msg.includes("limit");
+      if (!limited || i === attempts - 1) throw err;
+      await new Promise((r) => setTimeout(r, 700 * 2 ** i));
+    }
+  }
+  throw new Error("unreachable");
+}
+
+export interface Decision {
+  verdict: "settled" | "held";
+  campaignId: number;
+  wallet: `0x${string}`;
+  tasker?: `0x${string}`;
+  actionIndex: number;
+  amount?: string;
+  reason: string;
+  txHash: `0x${string}`;
+  blockNumber: string;
+}
+
+/**
+ * The falcon's decisions, newest first.
+ *
+ * `campaignId` narrows to one campaign; omit it for everything the agent has ever
+ * decided. Held events are the point as much as settled ones, so both are returned in
+ * one ordered list rather than the refusals being tucked away somewhere.
+ */
+/**
+ * A small in-process index of the agent's decisions.
+ *
+ * Arc produces sub-second blocks, so the escrow's first settlements already sit
+ * ~700,000 blocks behind the head — 77 windows of `eth_getLogs` against a rate-limited
+ * RPC, which is minutes, not a page load. So the scan happens once in the background,
+ * walking backwards from the head so the newest decisions land first, and every later
+ * request only catches up the blocks produced since.
+ *
+ * This is the honest shape of the problem rather than a workaround: a real deployment
+ * runs an indexer, and this is the smallest thing that behaves like one.
+ */
+const index: {
+  rows: Decision[];
+  seen: Set<string>;
+  oldestScanned: bigint | null;
+  newestScanned: bigint | null;
+  running: boolean;
+  complete: boolean;
+} = { rows: [], seen: new Set(), oldestScanned: null, newestScanned: null, running: false, complete: false };
+
+/** Block to stop scanning back at — before this, the escrow did not exist. */
+function floorBlock(): bigint {
+  const raw = process.env.VANE_ESCROW_FROM_BLOCK;
+  return raw && /^\d+$/.test(raw) ? BigInt(raw) : BigInt(0);
+}
+
+export function indexState() {
+  return {
+    indexed: index.rows.length,
+    scanning: index.running,
+    complete: index.complete,
+    // Exposed so the backfill's progress is observable rather than a black box.
+    oldestScanned: index.oldestScanned === null ? null : String(index.oldestScanned),
+    newestScanned: index.newestScanned === null ? null : String(index.newestScanned),
+    floor: String(floorBlock()),
+  };
+}
+
+export async function recentDecisions(params: {
+  escrow: `0x${string}`;
+  campaignId?: bigint;
+  limit?: number;
+}): Promise<Decision[]> {
+  const { escrow, campaignId, limit = 20 } = params;
+
+  await scan(escrow);
+
+  const out = index.rows.filter((r) => campaignId === undefined || BigInt(r.campaignId) === campaignId);
+  out.sort((a, b) => Number(BigInt(b.blockNumber) - BigInt(a.blockNumber)));
+  return out.slice(0, limit);
+}
+
+/** Arc caps `eth_getLogs` at 10,000 blocks, so every scan moves a window at a time. */
+const WINDOW = BigInt(9_500);
+
+async function readWindow(escrow: `0x${string}`, from: bigint, to: bigint) {
+  /**
+   * One request per window, not two.
+   *
+   * `getLogs` with `events` matches both signatures in a single `eth_getLogs`, where
+   * `getContractEvents` needs a call per event name. Against a rate-limited RPC and a
+   * backlog of ~58 windows that difference is the whole warm-up time.
+   */
+  const logs = await withRetry(() =>
+    publicClient.getLogs({ address: escrow, events: escrowEvents, fromBlock: from, toBlock: to }),
+  );
+
+  for (const l of logs) {
+    const common = {
+      campaignId: Number(l.args.campaignId),
+      wallet: l.args.wallet as `0x${string}`,
+      actionIndex: Number(l.args.actionIndex),
+      reason: String(l.args.reason ?? ""),
+      txHash: (l.transactionHash ?? "0x") as `0x${string}`,
+      blockNumber: String(l.blockNumber ?? BigInt(0)),
+    };
+
+    if (l.eventName === "Settled") {
+      add({
+        ...common,
+        verdict: "settled",
+        tasker: l.args.tasker as `0x${string}`,
+        amount: String(l.args.amount ?? BigInt(0)),
+      });
+    } else if (l.eventName === "Held") {
+      add({ ...common, verdict: "held" });
+    }
+  }
+}
+
+/** Keyed so a re-scan of an overlapping window cannot duplicate a decision. */
+function add(d: Decision) {
+  const key = `${d.verdict}:${d.txHash}:${d.campaignId}:${d.wallet}:${d.actionIndex}`;
+  if (index.seen.has(key)) return;
+  index.seen.add(key);
+  index.rows.push(d);
+}
+
+/**
+ * Catch up the index. Returns as soon as the head is current; the long backfill
+ * continues in the background so the first request is not held for minutes.
+ */
+async function scan(escrow: `0x${string}`) {
+  const head = await withRetry(() => publicClient.getBlockNumber());
+
+  // Forward catch-up: cheap, and keeps a live dashboard current.
+  if (index.newestScanned !== null && head > index.newestScanned) {
+    let from = index.newestScanned + BigInt(1);
+    while (from <= head) {
+      const to = from + WINDOW > head ? head : from + WINDOW;
+      await readWindow(escrow, from, to);
+      from = to + BigInt(1);
+    }
+    index.newestScanned = head;
+  }
+
+  if (index.complete || index.running) return;
+
+  index.running = true;
+  if (index.newestScanned === null) index.newestScanned = head;
+  if (index.oldestScanned === null) index.oldestScanned = head + BigInt(1);
+
+  // Backfill backwards, newest first, so useful rows appear early.
+  void (async () => {
+    try {
+      const floor = floorBlock();
+      while (index.oldestScanned !== null && index.oldestScanned > floor) {
+        const to = index.oldestScanned - BigInt(1);
+        const from = to > floor + WINDOW ? to - WINDOW : floor;
+        await readWindow(escrow, from, to);
+        index.oldestScanned = from;
+        if (from <= floor) break;
+        await new Promise((r) => setTimeout(r, 40));
+      }
+      index.complete = true;
+    } catch {
+      // Leave it incomplete; the next request resumes from where it stopped.
+    } finally {
+      index.running = false;
+    }
+  })();
+}
