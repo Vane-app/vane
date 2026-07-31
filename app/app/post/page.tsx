@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useState } from "react";
 import { AppBar, TabBar } from "../../components/AppChrome";
 import { Upload } from "../../components/Upload";
+import { useWallet } from "../../components/Wallet";
+import { Back } from "../../components/Back";
 import { TASK_TYPES, usd, FEE_BPS, type TaskType } from "../../lib/data";
 
 /**
@@ -29,6 +31,49 @@ export default function PostCampaign() {
   const [rate, setRate] = useState(2);
   const [budget, setBudget] = useState(500);
   const [posted, setPosted] = useState(false);
+  const { approve } = useWallet();
+  const [locking, setLocking] = useState(false);
+  const [lockStep, setLockStep] = useState<string | null>(null);
+  const [postError, setPostError] = useState<string | null>(null);
+
+  /**
+   * Locking the budget is the business's transaction, not Vane's.
+   *
+   * Two approvals in sequence: `approve` lets the vault pull the USDC, then
+   * `createCampaign` locks it. They must run in order — the allowance has to exist
+   * before the pull — so this deliberately awaits each one.
+   */
+  async function lockAndGoLive() {
+    setLocking(true);
+    setPostError(null);
+    try {
+      const res = await fetch("/api/campaigns", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          taskType: type,
+          rewardPerAction: Math.round(rate * 1_000_000),
+          budget: Math.round(budget * 1_000_000),
+          blurb: result,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Could not create the campaign.");
+
+      if (data.challenges?.length && data.auth) {
+        for (const c of data.challenges) {
+          setLockStep(c.step === "approve" ? "Approve the vault…" : "Lock the budget…");
+          await approve({ ...data.auth, challengeId: c.challengeId });
+        }
+      }
+      setPosted(true);
+    } catch (err) {
+      setPostError((err as Error).message);
+    } finally {
+      setLocking(false);
+      setLockStep(null);
+    }
+  }
 
   const results = Math.floor(budget / rate);
   const fee = (budget * FEE_BPS) / 10_000;
@@ -64,9 +109,7 @@ export default function PostCampaign() {
     <main className="screen">
       <AppBar />
 
-      <Link href="/tasks" className="backlink">
-        ← Marketplace
-      </Link>
+      <Back href="/business" label="Dashboard" />
 
       <header style={{ marginBottom: 26 }}>
         <h1 className="fade-up" style={{ fontSize: 28, lineHeight: 1.1 }}>
@@ -163,9 +206,17 @@ export default function PostCampaign() {
               <Term k="Verified by" v={type === "onchain" ? "Onchain evidence" : "Agent + your integration"} last />
             </div>
 
-            <button className="btn btn-amber" style={{ marginTop: 18 }} onClick={() => setPosted(true)}>
-              Lock {usd(budget * 1_000_000, { cents: false })} &amp; go live
+            <button
+              className="btn btn-amber"
+              style={{ marginTop: 18 }}
+              onClick={() => void lockAndGoLive()}
+              disabled={locking}
+            >
+              {locking
+                ? (lockStep ?? "Confirm in your wallet…")
+                : `Lock ${usd(budget * 1_000_000, { cents: false })} & go live`}
             </button>
+            {postError && <p className="wallet-error" style={{ marginTop: 10 }}>{postError}</p>}
             <p className="tiny" style={{ textAlign: "center", marginTop: 12 }}>
               Held in escrow by contract. Not even Vane can move it.
             </p>

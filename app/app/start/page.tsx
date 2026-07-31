@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Mark } from "../../components/Falcon";
+import { Back } from "../../components/Back";
 
 /**
  * App entry. One job: which side of the marketplace are you on.
@@ -8,11 +9,15 @@ import { Mark } from "../../components/Falcon";
 export default function Start() {
   return (
     <main className="startpage">
+      <div style={{ alignSelf: "flex-start" }}>
+        <Back href="/" label="Home" />
+      </div>
       <div className="fade-up" style={{ textAlign: "center", marginBottom: 34 }}>
-        <span className="row" style={{ gap: 10, marginBottom: 30, justifyContent: "center" }}>
+        {/* The wordmark is the way back out. Without it this screen is a dead end. */}
+        <Link href="/" className="row" style={{ gap: 10, marginBottom: 30, justifyContent: "center" }}>
           <Mark size={26} color="var(--amber)" />
           <b style={{ fontSize: 25, letterSpacing: "-.04em" }}>vane</b>
-        </span>
+        </Link>
         <h1 style={{ fontSize: "clamp(30px, 4vw, 44px)", lineHeight: 1.05 }}>Which side are you on?</h1>
         <p className="sub" style={{ fontSize: 15, marginTop: 12, maxWidth: "34ch", marginInline: "auto" }}>
           You can switch later. Nothing here needs a card or a wallet.
@@ -59,7 +64,10 @@ export default function Start() {
       </nav>
 
       <p className="tiny fade-up d3" style={{ textAlign: "center", marginTop: 26 }}>
-        Under a minute either way.
+        Under a minute either way. Already have an account?{" "}
+        <Link href="/login" style={{ color: "var(--amber)", fontWeight: 700 }}>
+          Log in
+        </Link>
       </p>
     </main>
   );

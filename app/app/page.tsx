@@ -68,10 +68,11 @@ export default function Homepage() {
           <a href="#faq">FAQ</a>
         </nav>
         <div className="row" style={{ gap: 8 }}>
-          <Link href="/start" className="hp-login">
+          <Link href="/login" className="hp-login">
             Log in
           </Link>
-          <Link href="/join/tasker" className="hp-getstarted">
+          {/* Generic CTA — send them to choose a side, not into one. */}
+          <Link href="/start" className="hp-getstarted">
             Get started
           </Link>
         </div>
@@ -83,8 +84,8 @@ export default function Homepage() {
         <p className="hp-lede">
           Take a campaign, bring real customers, get paid the moment each result is verified.
         </p>
-        <Link href="/join/tasker" className="hp-primary">
-          Take my first campaign
+        <Link href="/start" className="hp-primary">
+          Get started
         </Link>
         <p className="hp-feeline">
           Promoters keep <b>100%</b> &nbsp;·&nbsp; businesses pay <b>2.5%</b> on settled results

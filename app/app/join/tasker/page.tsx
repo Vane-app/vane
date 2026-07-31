@@ -1,11 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Falcon, Mark } from "../../../components/Falcon";
 import { useProfile, type Channel } from "../../../components/Profile";
 import { Upload } from "../../../components/Upload";
 import { OnboardFrame } from "../../../components/Onboard";
+import { WalletStep } from "../../../components/Wallet";
+import { Back } from "../../../components/Back";
+import { useMe } from "../../../components/Me";
 import { INDUSTRIES, type Industry } from "../../../lib/data";
 
 /**
@@ -38,16 +42,75 @@ export default function TaskerOnboarding() {
   const [strengths, setStrengths] = useState<Industry[]>([]);
   const [channels, setChannels] = useState<Channel[]>([]);
   const [socials, setSocials] = useState<string[]>([]);
+  const [walletReady, setWalletReady] = useState(false);
+  const [signedIn, setSignedIn] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+
+  /**
+   * Already a business adding the earning side? Skip identity entirely.
+   *
+   * We have their email, their name and — the one that matters — their wallet. Asking
+   * for a PIN again would be the single most annoying thing we could do to someone who
+   * already has a wallet with us.
+   */
+  const { me } = useMe();
+  useEffect(() => {
+    if (!me) return;
+    setEmail(me.email);
+    setSignedIn(true);
+    setName((n) => n || me.name);
+    setAvatar((a) => a || me.avatar);
+    setStep((s) => (s === "email" ? "strengths" : s));
+  }, [me]);
 
   const idx = ORDER.indexOf(step);
   const emailValid = /.+@.+\..+/.test(email);
 
-  function next() {
+  /**
+   * Advance a step, creating the account as soon as we have an email.
+   *
+   * The session has to exist before the wallet step renders — that step talks to
+   * Circle as this user, and without a session it fails with "Not signed in". Signing
+   * in here rather than at the end also means a half-finished onboarding still leaves
+   * a real account to come back to.
+   */
+  async function next() {
     const n = ORDER[idx + 1];
+
+    if (step === "email" && !signedIn) {
+      try {
+        const res = await fetch("/api/auth", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, role: "tasker" }),
+        });
+        if (!res.ok) throw new Error((await res.json()).error ?? "Could not create your account.");
+        setSignedIn(true);
+      } catch (err) {
+        setAuthError((err as Error).message);
+        return; // stay put rather than walk them into a step that cannot work
+      }
+    }
+
     if (n === "done") {
       save({ onboarded: true, email, name, avatar, strengths, channels, socials });
+      // Keep the account's name and avatar in step with what they just entered.
+      void fetch("/api/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, role: "tasker", name, avatar }),
+      });
     }
     setStep(n);
+  }
+
+  /** Step backwards, or leave the flow entirely from the first step. */
+  function prev() {
+    if (idx <= 0) {
+      router.push("/start");
+      return;
+    }
+    setStep(ORDER[idx - 1]);
   }
 
   function toggle<T>(arr: T[], v: T, set: (a: T[]) => void) {
@@ -55,12 +118,14 @@ export default function TaskerOnboarding() {
   }
 
   return (
-    <OnboardFrame side="earning">
+    <OnboardFrame side="earning" hero={step !== "done"} wide={step === "done"}>
       <header className="ob-top">
-        <span className="row" style={{ gap: 9 }}>
+        {/* Also the exit: onboarding must never be a room with no door. */}
+        <Link href="/" className="row" style={{ gap: 9 }}>
           <Mark size={20} color="var(--amber)" />
           <b style={{ fontSize: 19, letterSpacing: "-.04em" }}>vane</b>
-        </span>
+        </Link>
+        {step !== "done" && <Back onClick={prev} label={idx === 0 ? "Choose a side" : "Back"} />}
         {step !== "done" && (
           <div className="ob-progress" aria-hidden="true">
             {ORDER.slice(0, -1).map((s, i) => (
@@ -78,7 +143,7 @@ export default function TaskerOnboarding() {
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              if (emailValid) next();
+              if (emailValid) void next();
             }}
           >
             <div className="card" style={{ marginBottom: 14 }}>
@@ -98,6 +163,7 @@ export default function TaskerOnboarding() {
             <button type="submit" className="btn btn-amber" disabled={!emailValid} style={{ opacity: emailValid ? 1 : 0.4 }}>
               Continue
             </button>
+            {authError && <p className="wallet-error" style={{ marginTop: 10 }}>{authError}</p>}
           </form>
         </Panel>
       )}
@@ -192,21 +258,34 @@ export default function TaskerOnboarding() {
 
       {step === "done" && (
         <div className="ob-done">
-          {avatar ? (
-            <span className="face-ring" style={{ padding: 3 }}>
-              <img className="face" src={avatar} alt="" width={96} height={96} />
-            </span>
-          ) : (
-            <Falcon mode="idle" size={140} />
-          )}
-          <h1 style={{ fontSize: 30, lineHeight: 1.08, marginTop: 8 }}>You&rsquo;re in</h1>
-          <p className="sub" style={{ fontSize: 15, marginTop: 10, maxWidth: "32ch", marginInline: "auto" }}>
-            Your payout account is ready. We&rsquo;ve lined up {strengths.length ? strengths[0] : "fintech"} campaigns
-            that fit you.
-          </p>
-          <button className="btn btn-amber" style={{ marginTop: 28, maxWidth: 360 }} onClick={() => router.push("/tasks")}>
-            See your recommended campaigns
-          </button>
+          <div className="ob-done-portrait">
+            {avatar ? (
+              <span className="face-ring" style={{ padding: 3 }}>
+                <img className="face" src={avatar} alt="" width={96} height={96} />
+              </span>
+            ) : (
+              <Falcon mode="idle" size={140} />
+            )}
+          </div>
+
+          <div className="ob-done-body">
+            <h1 style={{ fontSize: 30, lineHeight: 1.08 }}>You&rsquo;re in</h1>
+            <p className="sub" style={{ fontSize: 15, marginTop: 10 }}>
+              One last thing: your payout wallet. We&rsquo;ve lined up{" "}
+              {strengths.length ? strengths[0] : "fintech"} campaigns that fit you.
+            </p>
+
+            {/* The wallet is the user's, not ours — so this step is theirs to complete.
+                It owns the only call to action until it is done; a second disabled
+                button underneath just said the same thing twice. */}
+            <WalletStep onDone={() => setWalletReady(true)} />
+
+            {walletReady && (
+              <button className="btn btn-amber ob-done-cta" onClick={() => router.push("/tasks")}>
+                See your recommended campaigns
+              </button>
+            )}
+          </div>
         </div>
       )}
     </OnboardFrame>

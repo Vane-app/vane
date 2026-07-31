@@ -1,11 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Falcon, Mark } from "../../../components/Falcon";
 import { useProfile } from "../../../components/Profile";
 import { Upload } from "../../../components/Upload";
 import { OnboardFrame } from "../../../components/Onboard";
+import { WalletStep } from "../../../components/Wallet";
+import { Back } from "../../../components/Back";
+import { useMe } from "../../../components/Me";
 import { INDUSTRIES, usd, type Industry } from "../../../lib/data";
 
 /**
@@ -35,14 +39,49 @@ export default function BusinessOnboarding() {
   const [industry, setIndustry] = useState<Industry>("Payments");
   const [funded, setFunded] = useState(500);
   const [bond, setBond] = useState(0);
+  const [walletReady, setWalletReady] = useState(false);
+  const [email, setEmail] = useState("");
+  const [signedIn, setSignedIn] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const emailValid = /.+@.+\..+/.test(email);
+
+  // Already a tasker? Then we know who they are. Reuse it rather than re-asking.
+  const { me, known } = useMe();
+  useEffect(() => {
+    if (!me) return;
+    setEmail(me.email);
+    setSignedIn(true);
+    // Their photo is a reasonable default logo; they can replace it a step later.
+    setLogo((l) => l || me.avatar);
+  }, [me]);
 
   const idx = ORDER.indexOf(step);
   const web3 = kind === "web3";
   // The result vocabulary the falcon uses, adapted to the business kind.
   const resultWord = web3 ? "onchain conversions" : "signups and sales";
 
-  function next() {
+  /**
+   * The session must exist before the wallet step renders — that step acts as this
+   * business against Circle, and without a session it fails with "Not signed in".
+   */
+  async function next() {
     const n = ORDER[idx + 1];
+
+    if (step === "name" && !signedIn) {
+      try {
+        const res = await fetch("/api/auth", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, role: "business", name, avatar: logo }),
+        });
+        if (!res.ok) throw new Error((await res.json()).error ?? "Could not create your account.");
+        setSignedIn(true);
+      } catch (err) {
+        setAuthError((err as Error).message);
+        return;
+      }
+    }
+
     if (n === "done") {
       save({
         business: {
@@ -59,13 +98,24 @@ export default function BusinessOnboarding() {
     setStep(n);
   }
 
+  /** Step backwards, or leave the flow entirely from the first step. */
+  function prev() {
+    if (idx <= 0) {
+      router.push("/start");
+      return;
+    }
+    setStep(ORDER[idx - 1]);
+  }
+
   return (
-    <OnboardFrame side="advertising">
+    <OnboardFrame side="advertising" hero={step !== "done"} wide={step === "done"}>
       <header className="ob-top">
-        <span className="row" style={{ gap: 9 }}>
+        {/* Also the exit: onboarding must never be a room with no door. */}
+        <Link href="/" className="row" style={{ gap: 9 }}>
           <Mark size={20} color="var(--amber)" />
           <b style={{ fontSize: 19, letterSpacing: "-.04em" }}>vane</b>
-        </span>
+        </Link>
+        {step !== "done" && <Back onClick={prev} label={idx === 0 ? "Choose a side" : "Back"} />}
         {step !== "done" && (
           <div className="ob-progress" aria-hidden="true">
             {ORDER.slice(0, -1).map((s, i) => (
@@ -80,7 +130,7 @@ export default function BusinessOnboarding() {
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              if (name.trim()) next();
+              if (name.trim() && emailValid) void next();
             }}
           >
             <div className="card" style={{ marginBottom: 16 }}>
@@ -89,6 +139,28 @@ export default function BusinessOnboarding() {
               </label>
               <input id="bn" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Lumen" autoFocus className="ob-input" />
             </div>
+
+            {/* Already have an account? Then we know the email — don't ask twice. */}
+            {known ? (
+              <p className="tiny" style={{ marginBottom: 16 }}>
+                Adding a business to <b style={{ color: "var(--ink)" }}>{email}</b>. Your wallet and details
+                carry over.
+              </p>
+            ) : (
+              <div className="card" style={{ marginBottom: 16 }}>
+                <label htmlFor="bemail" className="eyebrow">
+                  Work email
+                </label>
+                <input
+                  id="bemail"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@company.com"
+                  className="ob-input"
+                />
+              </div>
+            )}
 
             <p className="eyebrow" style={{ marginBottom: 10 }}>
               How do your results happen?
@@ -104,9 +176,15 @@ export default function BusinessOnboarding() {
               </button>
             </div>
 
-            <button type="submit" className="btn btn-amber" disabled={!name.trim()} style={{ opacity: name.trim() ? 1 : 0.4, marginTop: 20 }}>
+            <button
+              type="submit"
+              className="btn btn-amber"
+              disabled={!name.trim() || !emailValid}
+              style={{ opacity: name.trim() && emailValid ? 1 : 0.4, marginTop: 20 }}
+            >
               Continue
             </button>
+            {authError && <p className="wallet-error" style={{ marginTop: 10 }}>{authError}</p>}
           </form>
         </Panel>
       )}
@@ -183,24 +261,36 @@ export default function BusinessOnboarding() {
 
       {step === "done" && (
         <div className="ob-done">
-          {logo ? (
-            <span className="avatar" style={{ width: 96, height: 96, fontSize: 34, background: "var(--amber-glow)" }}>
-              <img className="face" src={logo} alt="" width={96} height={96} style={{ borderRadius: "50%" }} />
-            </span>
-          ) : (
-            <Falcon mode="idle" size={140} />
-          )}
-          <div className="row" style={{ gap: 8, marginTop: 14 }}>
-            <h1 style={{ fontSize: 30, lineHeight: 1.08 }}>{name || "You're"} is set up</h1>
-            {bond > 0 && <span className="badge badge-bonded">Bonded</span>}
+          <div className="ob-done-portrait">
+            {logo ? (
+              <span className="avatar" style={{ width: 96, height: 96, fontSize: 34, background: "var(--amber-glow)" }}>
+                <img className="face" src={logo} alt="" width={96} height={96} style={{ borderRadius: "50%" }} />
+              </span>
+            ) : (
+              <Falcon mode="idle" size={140} />
+            )}
           </div>
-          <p className="sub" style={{ fontSize: 15, marginTop: 10, maxWidth: "34ch", marginInline: "auto" }}>
-            {usd(funded * 1_000_000, { cents: false })} is ready in escrow. Post your first campaign and the
-            falcon starts verifying {resultWord} the moment they happen.
-          </p>
-          <button className="btn btn-amber" style={{ marginTop: 28, maxWidth: 360 }} onClick={() => router.push("/post")}>
-            Post your first campaign
-          </button>
+
+          <div className="ob-done-body">
+            <div className="row" style={{ gap: 8 }}>
+              <h1 style={{ fontSize: 30, lineHeight: 1.08 }}>{name || "You're"} is set up</h1>
+              {bond > 0 && <span className="badge badge-bonded">Bonded</span>}
+            </div>
+            <p className="sub" style={{ fontSize: 15, marginTop: 10 }}>
+              Next, your funding wallet. You&rsquo;ll lock {usd(funded * 1_000_000, { cents: false })} into escrow
+              when you post — and the falcon starts verifying {resultWord} the moment they happen.
+            </p>
+
+            {/* The business's funds are the business's. It signs its own escrow funding.
+                WalletStep owns the CTA until the wallet exists — no second button. */}
+            <WalletStep onDone={() => setWalletReady(true)} />
+
+            {walletReady && (
+              <button className="btn btn-amber ob-done-cta" onClick={() => router.push("/post")}>
+                Post your first campaign
+              </button>
+            )}
+          </div>
         </div>
       )}
     </OnboardFrame>
