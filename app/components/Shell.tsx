@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Mark } from "./Falcon";
 import { useMode, type Mode } from "./Mode";
+import { useMe, hasSide } from "./Me";
 
 /**
  * App chrome — one account, two modes, two shapes.
@@ -48,18 +49,31 @@ const NAV: Record<Mode, { href: string; label: string; icon: React.ReactNode }[]
 const HOME: Record<Mode, string> = { earning: "/tasks", advertising: "/business" };
 
 /** Full-window routes with no app chrome: marketing, onboarding, the preview. */
-const BARE = ["/", "/preview", "/start", "/join/tasker", "/join/business"];
+const BARE = ["/", "/preview", "/start", "/login", "/join/tasker", "/join/business"];
 
 export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { mode, setMode } = useMode();
+  const { me } = useMe();
 
   if (BARE.includes(pathname)) return <>{children}</>;
 
   const nav = NAV[mode];
 
+  /**
+   * Switching to advertising requires actually being an advertiser.
+   *
+   * Previously anyone who signed up to earn could flip the toggle and land on a
+   * business dashboard full of campaigns and budgets that were not theirs. Someone who
+   * has not onboarded as a business is sent to do that instead — the mode only changes
+   * once there is something real behind it.
+   */
   function switchMode(m: Mode) {
+    if (m === "advertising" && !hasSide(me, "business")) {
+      router.push("/join/business");
+      return;
+    }
     setMode(m);
     router.push(HOME[m]);
   }

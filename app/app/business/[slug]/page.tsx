@@ -3,17 +3,22 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { AppBar, TabBar } from "../../../components/AppChrome";
-import {
-  businessBySlug,
-  businesses,
-  campaignById,
-  usd,
-  rate,
-  rateNote,
-  poolPercent,
-  remaining,
-  daysLeft,
-} from "../../../lib/data";
+import { useEffect, useState } from "react";
+import { usd, rate, rateNote, poolPercent, remaining, daysLeft, type Campaign } from "../../../lib/data";
+
+interface Profile {
+  name: string;
+  initial: string;
+  colour: string;
+  blurb: string;
+  bonded: boolean;
+  kind: "web2" | "web3";
+  totalFunded: number;
+  totalPaid: number;
+  results: number;
+  promoters: number;
+  campaigns: Campaign[];
+}
 
 /**
  * Public business profile — a business as a findable entity.
@@ -24,8 +29,41 @@ import {
  */
 export default function BusinessProfile() {
   const params = useParams<{ slug: string }>();
-  const b = businessBySlug(params?.slug ?? "") ?? businesses[0];
-  const open = b.campaignIds.map(campaignById).filter(Boolean);
+  const slug = params?.slug ?? "";
+  const [b, setB] = useState<Profile | null>(null);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!slug) return;
+    let live = true;
+    fetch(`/api/business/${slug}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (live && !d.error) setB(d as Profile);
+      })
+      .catch(() => {})
+      .finally(() => live && setLoaded(true));
+    return () => {
+      live = false;
+    };
+  }, [slug]);
+
+  if (!b) {
+    return (
+      <main className="screen">
+        <AppBar />
+        <Link href="/tasks" className="backlink">
+          &larr; Marketplace
+        </Link>
+        <p className="sub" style={{ marginTop: 40 }}>
+          {loaded ? "We don't know that business yet." : "Loading…"}
+        </p>
+        <TabBar />
+      </main>
+    );
+  }
+
+  const open = b.campaigns.filter((c) => c.status === "active");
 
   return (
     <main className="screen">
@@ -45,7 +83,7 @@ export default function BusinessProfile() {
             {b.bonded && <span className="badge badge-bonded">Bonded</span>}
           </div>
           <p className="tiny" style={{ marginTop: 3 }}>
-            {b.blurb} · {b.kind === "web3" ? "Onchain business" : "Web business"} · since {b.since}
+            {b.blurb} · {b.kind === "web3" ? "Onchain business" : "Web business"}
           </p>
         </div>
       </header>
@@ -60,12 +98,12 @@ export default function BusinessProfile() {
           <span>paid to taskers</span>
         </div>
         <div>
-          <b className="num">{Math.round(b.approvalRate * 100)}%</b>
-          <span>results approved</span>
+          <b className="num">{b.results}</b>
+          <span>results verified</span>
         </div>
         <div>
-          <b className="num">{b.disputes}</b>
-          <span>disputes raised</span>
+          <b className="num">{b.promoters}</b>
+          <span>promoters</span>
         </div>
       </section>
 

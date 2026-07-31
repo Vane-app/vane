@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AppBar, TabBar } from "../../components/AppChrome";
 import { useProfile } from "../../components/Profile";
 import {
@@ -42,9 +42,33 @@ export default function Browse() {
   const [sort, setSort] = useState<SortKey>("top");
   const [sheet, setSheet] = useState(false);
 
+  /**
+   * The live inventory.
+   *
+   * Seeded from the bundled set so the grid is never empty on first paint, then
+   * replaced by whatever the server actually holds. Without this a business could post
+   * a campaign, land back on the marketplace, and not find it — the most obviously
+   * broken thing a marketplace can do.
+   */
+  const [campaigns, setCampaigns] = useState<Campaign[]>(allCampaigns);
+  useEffect(() => {
+    let live = true;
+    fetch("/api/campaigns")
+      .then((r) => r.json())
+      .then((d) => {
+        if (live && Array.isArray(d.campaigns) && d.campaigns.length) setCampaigns(d.campaigns);
+      })
+      .catch(() => {
+        // Keep the seeded list rather than blanking the marketplace on a network blip.
+      });
+    return () => {
+      live = false;
+    };
+  }, []);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const list = allCampaigns.filter((c) => {
+    const list = campaigns.filter((c) => {
       if (type !== "all" && c.taskType !== type) return false;
       if (industries.size && !industries.has(c.industry)) return false;
       if (efforts.size && !efforts.has(c.effort)) return false;
@@ -62,7 +86,7 @@ export default function Browse() {
       return [...sorted].sort((a, b) => Number(strong.has(b.industry)) - Number(strong.has(a.industry)));
     }
     return sorted;
-  }, [query, type, industries, efforts, verify, minPay, sort, profile.strengths]);
+  }, [campaigns, query, type, industries, efforts, verify, minPay, sort, profile.strengths]);
 
   const forYou = new Set(profile.strengths);
 

@@ -46,6 +46,13 @@ export interface Campaign {
   /** Shown instead of a flat rate for revenue-share campaigns. */
   rateLabel?: string;
   status: CampaignStatus;
+  /** The account that created this campaign. Absent on the seeded set, which belongs
+   *  to nobody — that is what lets the business dashboard show only your own. */
+  ownerId?: string;
+  /** The campaign's id inside VaneEscrow, once it has been funded on-chain.
+   *  Absent for seeded demo campaigns that were never funded — the take-flow uses
+   *  this to know whether a referral code can actually be sealed in the registry. */
+  escrowCampaignId?: number;
   /** Marketplace facets. */
   taskType: TaskType;
   industry: Industry;

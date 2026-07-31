@@ -132,11 +132,13 @@ export function createCampaign(input: {
   budget: number;
   durationDays: number;
   bonded: boolean;
+  ownerId?: string;
 }): Campaign {
   const s = store();
   const id = s.nextCampaignId++;
   const c: Campaign = {
     id,
+    ownerId: input.ownerId,
     business: input.business,
     blurb: input.blurb,
     initial: input.initial,
@@ -188,6 +190,30 @@ export function takeCampaign(userId: string, campaignId: number): Take {
 
 export function takesForUser(userId: string): Take[] {
   return store().takes.filter((t) => t.userId === userId);
+}
+
+/** A business's own campaigns — what its dashboard is allowed to show. */
+export function campaignsForOwner(userId: string): Campaign[] {
+  return listCampaigns().filter((c) => c.ownerId === userId);
+}
+
+/** Everyone who took a campaign, and how it has performed. Powers the dashboard. */
+export function takesForCampaign(campaignId: number): Take[] {
+  return store().takes.filter((t) => t.campaignId === campaignId);
+}
+
+/** Roll a business's campaigns up into the figures its dashboard leads with. */
+export function businessSummary(userId: string) {
+  const campaigns = campaignsForOwner(userId);
+  const takes = campaigns.flatMap((c) => takesForCampaign(c.id));
+  return {
+    campaigns,
+    locked: campaigns.reduce((s, c) => s + c.budget, 0),
+    spent: campaigns.reduce((s, c) => s + c.spent, 0),
+    results: takes.reduce((s, t) => s + t.results, 0),
+    clicks: takes.reduce((s, t) => s + t.clicks, 0),
+    promoters: new Set(takes.map((t) => t.userId)).size,
+  };
 }
 
 export function findTakeByCode(refCode: string): Take | undefined {

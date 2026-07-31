@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AppBar, TabBar } from "../../components/AppChrome";
-import { performance, earningsSeries, payouts, usd } from "../../lib/data";
+import { useMe } from "../../components/Me";
+import { usd } from "../../lib/data";
 
 /**
  * Earnings.
@@ -12,23 +13,63 @@ import { performance, earningsSeries, payouts, usd } from "../../lib/data";
  * agent is still checking, how earnings have moved over thirty days, how each
  * campaign is actually converting, and the payout ledger underneath.
  */
-export default function Earnings() {
-  const lifetime = performance.reduce((s, p) => s + p.earned, 0);
-  const pending = performance.reduce((s, p) => s + p.held, 0);
+interface Stream {
+  campaignId: number;
+  business: string;
+  initial: string;
+  colour: string;
+  clicks: number;
+  results: number;
+  earned: number;
+  live: boolean;
+}
 
-  const [available, setAvailable] = useState(2_847_500_000);
-  const [drip, setDrip] = useState(0);
+export default function Earnings() {
+  const { me: account } = useMe();
+
+  /**
+   * The balance is read from the server, never invented.
+   *
+   * This previously started at $2,847.50 and incremented by a random amount every few
+   * seconds, which looks like live settlement and is in fact money from nowhere. A
+   * product whose entire pitch is verified payment cannot have a fabricated balance on
+   * its earnings screen. An honest zero is worth more than an impressive fiction.
+   */
+  const [available, setAvailable] = useState<number | null>(null);
+  const [results, setResults] = useState(0);
+  const [streams, setStreams] = useState<Stream[]>([]);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    const t = setInterval(() => {
-      const d = 20_000 + Math.floor(Math.random() * 55_000);
-      setAvailable((b) => b + d);
-      setDrip(d);
-    }, 4200);
-    return () => clearInterval(t);
+    let live = true;
+    const load = () =>
+      fetch("/api/earnings")
+        .then((r) => r.json())
+        .then((d) => {
+          if (!live) return;
+          setAvailable(Number(d.available ?? 0));
+          setResults(Number(d.results ?? 0));
+          setStreams(Array.isArray(d.streams) ? d.streams : []);
+          setLoaded(true);
+        })
+        .catch(() => {
+          if (live) {
+            setAvailable((a) => a ?? 0);
+            setLoaded(true);
+          }
+        });
+
+    void load();
+    // Settlement is near-instant, so a slow poll is enough to show a payout landing.
+    const t = setInterval(load, 10_000);
+    return () => {
+      live = false;
+      clearInterval(t);
+    };
   }, []);
 
-  const today = earningsSeries[earningsSeries.length - 1];
+  const lifetime = streams.reduce((s, p) => s + p.earned, 0);
+  const running = streams.filter((p) => p.live).length;
 
   return (
     <main className="screen">
@@ -36,51 +77,62 @@ export default function Earnings() {
 
       <header className="earn-head fade-up">
         <div>
-          <span className="tiny">Available to cash out</span>
+          <span className="tiny">Earned and settled to you</span>
           <b className="money num" aria-live="polite">
-            {usd(available)}
+            {available === null ? "—" : usd(available)}
           </b>
-          {drip > 0 && (
-            <span key={available} className="pill-up num" style={{ marginTop: 11, animation: "rise .5s var(--ease) both" }}>
-              ↑ {usd(drip)} just now
+          {available === 0 && (
+            <span className="tiny" style={{ display: "block", marginTop: 10 }}>
+              Take a campaign and your first verified result lands here in about a second.
             </span>
           )}
         </div>
 
-        <Link href="/paid" className="btn btn-amber earn-cash">
-          Cash out
-          <small>Instant · no minimum · no fee</small>
-        </Link>
+        {/* There is nothing to "cash out" of.
+            `settle()` pays the tasker's address directly from the escrow contract, and
+            that address is a wallet only the user controls. The money is already theirs
+            the instant it is verified — Vane never holds it, so there is no withdrawal
+            step to build and never was. The button now says what is true. */}
+        {account?.walletAddress ? (
+          <a
+            href={`https://testnet.arcscan.app/address/${account.walletAddress}`}
+            target="_blank"
+            rel="noreferrer"
+            className="btn btn-amber earn-cash"
+          >
+            It&rsquo;s in your wallet
+            <small>Paid straight to you on Arc · view it</small>
+          </a>
+        ) : (
+          <span className="btn btn-amber earn-cash" style={{ opacity: 0.45, pointerEvents: "none" }}>
+            It&rsquo;s in your wallet
+            <small>Paid straight to you on Arc</small>
+          </span>
+        )}
       </header>
 
       <section className="statgrid fade-up d1" style={{ margin: "26px 0 30px" }}>
         <div>
-          <b className="num">{usd(today)}</b>
-          <span>earned today</span>
+          <b className="num">{results}</b>
+          <span>verified results</span>
         </div>
         <div>
-          <b className="num">{usd(pending)}</b>
-          <span>being verified</span>
+          <b className="num">{streams.reduce((s, p) => s + p.clicks, 0).toLocaleString()}</b>
+          <span>clicks driven</span>
         </div>
         <div>
           <b className="num">{usd(lifetime, { cents: false })}</b>
           <span>earned all time</span>
         </div>
         <div>
-          <b className="num">{performance.filter((p) => p.live).length}</b>
+          <b className="num">{running}</b>
           <span>campaigns running</span>
         </div>
       </section>
 
-      <section className="fade-up d2" style={{ marginBottom: 32 }}>
-        <div className="sec-head">
-          <span>Last 30 days</span>
-          <span className="num" style={{ color: "var(--amber)", fontWeight: 700 }}>
-            {usd(today)} today
-          </span>
-        </div>
-        <EarningsChart data={earningsSeries} />
-      </section>
+      {/* The 30-day chart is gone rather than faked. It plotted `earningsSeries`, a
+          seeded curve identical for every account — a shape of success nobody had. It
+          comes back when there is history to plot. */}
 
       <div className="two-up">
         <section className="fade-up d3" style={{ marginBottom: 26 }}>
@@ -97,25 +149,42 @@ export default function Earnings() {
               <span>Earned</span>
             </div>
 
-            {performance.map((p) => (
-              <Link key={p.campaignId} href={`/campaign/${p.campaignId}`} className="perf-row">
-                <span className="perf-name">
-                  <span className="avatar" style={{ background: p.colour, width: 26, height: 26, fontSize: 11 }} aria-hidden="true">
-                    {p.initial}
+            {streams.length === 0 ? (
+              <div className="perf-row" style={{ display: "block", padding: "16px 0" }}>
+                <span className="tiny">
+                  {loaded ? (
+                    <>
+                      No campaigns taken yet.{" "}
+                      <Link href="/tasks" style={{ color: "var(--amber)", fontWeight: 700 }}>
+                        Find one →
+                      </Link>
+                    </>
+                  ) : (
+                    "Loading…"
+                  )}
+                </span>
+              </div>
+            ) : (
+              streams.map((p) => (
+                <Link key={p.campaignId} href={`/campaign/${p.campaignId}`} className="perf-row">
+                  <span className="perf-name">
+                    <span className="avatar" style={{ background: p.colour, width: 26, height: 26, fontSize: 11 }} aria-hidden="true">
+                      {p.initial}
+                    </span>
+                    <b>
+                      {p.business}
+                      {p.live && <i className="livedot" />}
+                    </b>
                   </span>
-                  <b>
-                    {p.business}
-                    {p.live && <i className="livedot" />}
-                  </b>
-                </span>
-                <span className="num">{p.clicks.toLocaleString()}</span>
-                <span className="num">
-                  {p.results}
-                  <i className="rate">{Math.round((p.results / p.clicks) * 100)}%</i>
-                </span>
-                <b className="num">{usd(p.earned, { cents: false })}</b>
-              </Link>
-            ))}
+                  <span className="num">{p.clicks.toLocaleString()}</span>
+                  <span className="num">
+                    {p.results}
+                    {p.clicks > 0 && <i className="rate">{Math.round((p.results / p.clicks) * 100)}%</i>}
+                  </span>
+                  <b className="num">{usd(p.earned, { cents: false })}</b>
+                </Link>
+              ))
+            )}
           </div>
         </section>
 
@@ -125,71 +194,42 @@ export default function Earnings() {
             <Link href="/paid">All activity</Link>
           </div>
 
+          {/* One row per campaign that has actually paid. A per-payout ledger needs the
+              agent's decisions indexed off-chain; until then this shows what is true
+              rather than a seeded list of settlements that never happened. */}
           <div className="group">
-            {payouts.map((p) => (
-              <div key={p.id} className="grow-row">
-                <span className={`dot ${p.state === "held" ? "dot-no" : "dot-ok"}`} aria-hidden="true">
-                  {p.state === "held" ? "✕" : p.state === "checking" ? "•" : "✓"}
+            {streams.filter((p) => p.earned > 0).length === 0 ? (
+              <div className="grow-row" style={{ display: "block" }}>
+                <b style={{ display: "block", marginBottom: 4 }}>Nothing settled yet</b>
+                <span className="tiny">
+                  Every payout the falcon approves — and every one it refuses, with its reason — appears here.
                 </span>
-                <div className="body">
-                  <b>{p.label}</b>
-                  <span>
-                    {p.when}
-                    {p.state === "checking" && " · agent checking"}
-                    {p.state === "held" && " · held, not paid"}
-                  </span>
-                </div>
-                <b
-                  className="amt num"
-                  style={{
-                    color:
-                      p.state === "paid" ? "var(--verified)" : p.state === "held" ? "var(--faint)" : "var(--muted)",
-                  }}
-                >
-                  {p.state === "paid" ? "+" : ""}
-                  {usd(p.amount)}
-                </b>
               </div>
-            ))}
+            ) : (
+              streams
+                .filter((p) => p.earned > 0)
+                .map((p) => (
+                  <div key={p.campaignId} className="grow-row">
+                    <span className="dot dot-ok" aria-hidden="true">
+                      ✓
+                    </span>
+                    <div className="body">
+                      <b>{p.business}</b>
+                      <span>
+                        {p.results} verified result{p.results === 1 ? "" : "s"}
+                      </span>
+                    </div>
+                    <b className="amt num" style={{ color: "var(--verified)" }}>
+                      +{usd(p.earned)}
+                    </b>
+                  </div>
+                ))
+            )}
           </div>
         </section>
       </div>
 
       <TabBar />
     </main>
-  );
-}
-
-/** Thin amber line, recessive grid, one emphasised endpoint. */
-function EarningsChart({ data }: { data: number[] }) {
-  const w = 640;
-  const h = 170;
-  const max = Math.max(...data);
-  const pts = data.map((v, i) => [(i / (data.length - 1)) * w, h - 22 - (v / max) * (h - 46)] as const);
-  const line = pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
-  const area = `${line} ${w},${h - 22} 0,${h - 22}`;
-  const [lx, ly] = pts[pts.length - 1];
-
-  return (
-    <div className="chart">
-      <svg viewBox={`0 0 ${w} ${h}`} role="img" aria-label="Daily earnings over the last 30 days, rising steadily">
-        {[0.25, 0.5, 0.75].map((f) => (
-          <line key={f} x1="0" x2={w} y1={24 + f * (h - 46)} y2={24 + f * (h - 46)} stroke="rgba(255,255,255,.06)" />
-        ))}
-        <polygon points={area} fill="url(#earnfill)" />
-        <polyline points={line} fill="none" stroke="var(--amber)" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
-        <circle cx={lx} cy={ly} r="4.5" fill="var(--amber)" stroke="#0a1218" strokeWidth="2.5" />
-        <defs>
-          <linearGradient id="earnfill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="rgba(240,169,75,.28)" />
-            <stop offset="100%" stopColor="rgba(240,169,75,0)" />
-          </linearGradient>
-        </defs>
-      </svg>
-      <div className="chart-axis">
-        <span>30 days ago</span>
-        <span>Today</span>
-      </div>
-    </div>
   );
 }

@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AppBar, TabBar } from "../../../components/AppChrome";
 import { Mark } from "../../../components/Falcon";
+import { useWallet } from "../../../components/Wallet";
 import {
   campaigns,
   moreCampaigns,
@@ -34,13 +35,78 @@ type Stage = "browse" | "terms" | "taken";
 export default function CampaignPage() {
   const params = useParams<{ id: string }>();
   const id = Number(params?.id);
-  const c = ALL.find((x) => x.id === id) ?? ALL[0];
-  const d = detailFor(c.id);
+
+  /**
+   * The campaign comes from the server.
+   *
+   * The bundled array is only the first paint, so the page is never blank; the live
+   * record replaces it. Crucially there is no `?? ALL[0]` fallback any more — an id we
+   * do not have used to render a different business's campaign, complete with their
+   * rate and budget, which is about the worst thing a marketplace listing can do.
+   */
+  const seed = ALL.find((x) => x.id === id) ?? null;
+  const [c, setC] = useState(seed);
+  const [perf, setPerf] = useState<{ promoters: number; results: number; totalPaid: number } | null>(null);
+  const [missing, setMissing] = useState(false);
+
+  useEffect(() => {
+    if (!Number.isFinite(id)) return;
+    let live = true;
+    fetch(`/api/campaigns/${id}`)
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("not found"))))
+      .then((data) => {
+        if (!live) return;
+        setC(data.campaign);
+        setPerf(data.performance);
+      })
+      .catch(() => live && !seed && setMissing(true));
+    return () => {
+      live = false;
+    };
+  }, [id, seed]);
+
+  const d = detailFor(id);
 
   const [stage, setStage] = useState<Stage>("browse");
   const [copied, setCopied] = useState(false);
+  const { approve } = useWallet();
+  const [taking, setTaking] = useState(false);
+  const [takeLink, setTakeLink] = useState<string | null>(null);
+  const [sealed, setSealed] = useState(false);
+  const [takeError, setTakeError] = useState<string | null>(null);
 
-  const link = `vane.money/r/${c.business.toLowerCase().replace(/\s+/g, "")}-tunde`;
+  /**
+   * Taking a campaign claims a referral code in the registry — an on-chain act, and
+   * the tasker's to authorise. We ask the server to prepare it, then hand the
+   * challenge to Circle's UI where they approve with their PIN. Vane cannot sign it.
+   *
+   * If the campaign was never funded on-chain (seeded demo data), the take is still
+   * recorded and the link still works; it just isn't sealed, and we don't claim it is.
+   */
+  async function take() {
+    setTaking(true);
+    setTakeError(null);
+    try {
+      const res = await fetch(`/api/campaigns/${id}/take`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Could not take this campaign.");
+
+      setTakeLink(data.link ?? null);
+
+      if (data.challenge) {
+        await approve(data.challenge);
+        setSealed(true);
+      }
+      setStage("taken");
+    } catch (err) {
+      setTakeError((err as Error).message);
+    } finally {
+      setTaking(false);
+    }
+  }
+
+  // The real code comes back from the take; the placeholder only ever shows before one exists.
+  const link = takeLink ?? `vane.money/r/${(c?.business ?? "").toLowerCase().replace(/\s+/g, "")}`;
 
   async function copy() {
     try {
@@ -51,6 +117,23 @@ export default function CampaignPage() {
       setCopied(false);
     }
   }
+
+  // No campaign, no page. Previously this rendered someone else's listing instead.
+  if (!c) {
+    return (
+      <main className="screen">
+        <AppBar />
+        <Link href="/tasks" className="backlink">
+          &larr; Marketplace
+        </Link>
+        <p className="sub" style={{ marginTop: 40 }}>
+          {missing ? "That campaign no longer exists." : "Loading…"}
+        </p>
+        <TabBar />
+      </main>
+    );
+  }
+
 
   return (
     <main className="screen">
@@ -121,13 +204,21 @@ export default function CampaignPage() {
             </ul>
           </section>
 
+          {/* Real counts. A promoter deciding whether to take this needs to know it is
+              new if it is new — a seeded "94% approved" on a campaign that has never
+              paid anyone is exactly the kind of thing they'd take it on and regret. */}
           <Block title="How this campaign is performing">
             <div className="statgrid">
-              <Stat v={String(d.promoters)} l="promoters active" />
-              <Stat v={usd(d.totalPaid, { cents: false })} l="paid out so far" />
-              <Stat v={`${Math.round(d.approvalRate * 100)}%`} l="of results approved" />
-              <Stat v={`${d.medianPayoutSeconds}s`} l="median time to payout" />
+              <Stat v={String(perf?.promoters ?? 0)} l="promoters active" />
+              <Stat v={usd(perf?.totalPaid ?? c.spent, { cents: false })} l="paid out so far" />
+              <Stat v={String(perf?.results ?? 0)} l="results verified" />
+              <Stat v={usd(remaining(c), { cents: false })} l="still funded" />
             </div>
+            {perf && perf.promoters === 0 && (
+              <p className="tiny" style={{ marginTop: 12 }}>
+                Nobody has taken this yet — you&rsquo;d be first.
+              </p>
+            )}
           </Block>
 
           <Block title="What you need to do">
@@ -206,9 +297,10 @@ export default function CampaignPage() {
                       <li>Results are checked against onchain evidence</li>
                       <li>Breaking the rules above voids that payout</li>
                     </ul>
-                    <button className="btn btn-amber" onClick={() => setStage("taken")}>
-                      Agree &amp; get my link
+                    <button className="btn btn-amber" onClick={() => void take()} disabled={taking}>
+                      {taking ? "Confirm in your wallet…" : "Agree & get my link"}
                     </button>
+                    {takeError && <p className="wallet-error" style={{ marginTop: 10 }}>{takeError}</p>}
                     <button
                       className="tiny"
                       onClick={() => setStage("browse")}
@@ -227,7 +319,11 @@ export default function CampaignPage() {
                   </span>
                   <div>
                     <b style={{ fontSize: 15, display: "block" }}>You&rsquo;re on this campaign</b>
-                    <span className="tiny">Share your link — earnings start on the first result.</span>
+                    <span className="tiny">
+                      {sealed
+                        ? "Your code is sealed on Arc — attribution can't be rewritten."
+                        : "Share your link — earnings start on the first result."}
+                    </span>
                   </div>
                 </div>
 

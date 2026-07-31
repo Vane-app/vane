@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Mark } from "../../components/Falcon";
 import { Mascot } from "../../components/Mascot";
+import { usd } from "../../lib/data";
 
 /**
  * The payout moment.
@@ -18,6 +19,26 @@ const CHECKS = ["Referral traced to your link", "Real, active account — not a 
 export default function Paid() {
   const [amountIn, setAmountIn] = useState(false);
   const [revealed, setRevealed] = useState(0);
+  /**
+   * The celebrated figure is the user's real settled total.
+   *
+   * It was hardcoded to "$2.00 landed in your balance" and "paid in 1.2 seconds", shown
+   * identically to anyone who opened the page — including someone who had never earned
+   * anything. A screen whose whole purpose is to prove a payout happened cannot invent
+   * the payout.
+   */
+  const [earned, setEarned] = useState<number | null>(null);
+
+  useEffect(() => {
+    let live = true;
+    fetch("/api/earnings")
+      .then((r) => r.json())
+      .then((d) => live && setEarned(Number(d.available ?? 0)))
+      .catch(() => live && setEarned(0));
+    return () => {
+      live = false;
+    };
+  }, []);
 
   useEffect(() => {
     const timers = [
@@ -61,10 +82,10 @@ export default function Paid() {
           ✓
         </span>
         <b className="money num" style={{ fontSize: 54 }}>
-          $2.00
+          {earned === null ? "—" : usd(earned)}
         </b>
         <p className="sub" style={{ marginTop: 10, fontSize: 15 }}>
-          landed in your balance
+          {earned ? "settled straight to your wallet" : "nothing settled yet"}
         </p>
       </div>
 
@@ -90,7 +111,7 @@ export default function Paid() {
       </div>
 
       <p className="tiny num" style={{ marginTop: 20 }}>
-        Verified and paid in 1.2 seconds
+        Verified onchain, then paid in about a second
       </p>
 
       <div className="stack" style={{ gap: 10, marginTop: 30 }}>

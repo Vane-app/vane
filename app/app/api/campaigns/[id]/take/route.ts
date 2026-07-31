@@ -1,17 +1,26 @@
 import { NextResponse } from "next/server";
+import { createHash } from "node:crypto";
 import { takeCampaign, getCampaign, getUser } from "../../../../../lib/store";
 import { currentUserId } from "../../../../../lib/session";
+import { startSession, createContractChallenge, userWalletsConfigured } from "../../../../../lib/circle-user";
 
 /**
  * POST /api/campaigns/[id]/take — a tasker takes a campaign.
  *
- * Creates the take, and in the full flow seals the referral code into the
- * ReferralRegistry contract so attribution is onchain and permanent. Returns the
- * promoter's referral link.
+ * Taking a campaign is an on-chain act: it claims a referral code in the
+ * ReferralRegistry, which is what makes attribution permanent and unrewritable. It is
+ * therefore the tasker's transaction to sign, not ours. We prepare the call and hand
+ * back a challenge; the tasker approves it with their PIN inside Circle's UI.
+ *
+ * Vane cannot complete this on their behalf, which is the same property that stops us
+ * moving their earnings. When Circle isn't configured we fall back to recording the
+ * take locally so the demo stays clickable — and say so in the response rather than
+ * pretending something was sealed on-chain.
  */
 export async function POST(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   const uid = await currentUserId();
-  if (!uid || !getUser(uid)) return NextResponse.json({ error: "Sign in first." }, { status: 401 });
+  const user = uid ? getUser(uid) : undefined;
+  if (!uid || !user) return NextResponse.json({ error: "Sign in first." }, { status: 401 });
 
   const { id } = await ctx.params;
   const campaignId = Number(id);
@@ -21,9 +30,51 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
   const take = takeCampaign(uid, campaignId);
   const base = process.env.NEXT_PUBLIC_APP_URL ?? "https://vane.money";
   const link = `${base.replace(/^https?:\/\//, "")}/r/${take.refCode}`;
-
-  return NextResponse.json({
+  const payload = {
     take: { id: take.id, refCode: take.refCode, results: take.results, earned: take.earned },
     link,
-  });
+  };
+
+  const registry = process.env.VANE_REGISTRY_ADDRESS;
+  const chainId = campaign.escrowCampaignId;
+
+  // Off-chain only: no registry deployed, no Circle, or this campaign was never
+  // funded on-chain. Still a valid take — just not a sealed one.
+  if (!userWalletsConfigured || !registry || !chainId || !user.walletId) {
+    return NextResponse.json({ ...payload, sealed: false });
+  }
+
+  try {
+    const session = await startSession(uid);
+    if (!session.ready) {
+      return NextResponse.json({ ...payload, sealed: false, needsWallet: true });
+    }
+
+    const challengeId = await createContractChallenge({
+      userToken: session.userToken,
+      walletId: user.walletId,
+      contractAddress: registry,
+      abiFunctionSignature: "claimCode(uint256,bytes32)",
+      abiParameters: [String(chainId), codeHash(take.refCode)],
+    });
+
+    return NextResponse.json({
+      ...payload,
+      sealed: false, // becomes true once the tasker approves and the tx confirms
+      challenge: {
+        challengeId,
+        userToken: session.userToken,
+        encryptionKey: session.encryptionKey,
+        appId: session.appId,
+      },
+    });
+  } catch (err) {
+    // A failed challenge must not lose the take — the tasker still holds the campaign.
+    return NextResponse.json({ ...payload, sealed: false, error: (err as Error).message });
+  }
+}
+
+/** The on-chain code is a bytes32 hash of the human-readable referral code. */
+function codeHash(refCode: string): string {
+  return `0x${createHash("sha256").update(refCode).digest("hex")}`;
 }
