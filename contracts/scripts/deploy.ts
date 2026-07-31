@@ -1,9 +1,12 @@
-import "dotenv/config";
-import { initiateSmartContractPlatformClient } from "@circle-fin/smart-contract-platform";
+import "./env.js";
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
+
+// Dynamic import: tsx resolves the Circle SDK's CJS build, where static named imports
+// fail at load. See the note in entity-secret.ts.
+const { initiateSmartContractPlatformClient } = await import("@circle-fin/smart-contract-platform");
 
 /**
  * Deploys the Vane contracts to Arc through Circle's Smart Contract Platform.
@@ -32,6 +35,45 @@ function artifact(name: string) {
   return JSON.parse(readFileSync(path, "utf8")) as { abi: unknown; bytecode: string };
 }
 
+/**
+ * Circle accepts a deploy and mines it asynchronously, so `deployContract` usually
+ * returns before an address exists. Poll rather than make the operator re-run the
+ * script and guess when it is ready.
+ */
+async function waitForAddress(
+  // The published type says getContract(id: string), but at runtime it destructures
+  // `{ id }` from its first argument. Passing a bare string fails with
+  // "Required parameter id was null or undefined".
+  scp: { getContract: (params: { id: string }) => Promise<{ data?: unknown }> },
+  contractId: string,
+  timeoutMs = 180_000,
+): Promise<string> {
+  const started = Date.now();
+  process.stdout.write("  waiting for the address");
+  while (Date.now() - started < timeoutMs) {
+    const res = await scp.getContract({ id: contractId });
+    const data = res.data as { contract?: { contractAddress?: string; status?: string } } & {
+      contractAddress?: string;
+      status?: string;
+    };
+    const contract = data?.contract ?? data;
+    if (contract?.contractAddress) {
+      process.stdout.write("\n");
+      return contract.contractAddress;
+    }
+    if (contract?.status === "FAILED") {
+      process.stdout.write("\n");
+      throw new Error(`Deploy ${contractId} failed. Check https://console.circle.com`);
+    }
+    process.stdout.write(".");
+    await new Promise((r) => setTimeout(r, 4_000));
+  }
+  process.stdout.write("\n");
+  throw new Error(
+    `Deploy ${contractId} had no address after ${timeoutMs / 1000}s. It may still land — check the Circle console.`,
+  );
+}
+
 function requireEnv(key: string): string {
   const v = process.env[key];
   if (!v) {
@@ -55,7 +97,9 @@ async function main() {
   console.log("Deploying ReferralRegistry to Arc…");
   const registryRes = await scp.deployContract({
     name: "Vane ReferralRegistry",
-    description: "On-chain referral attribution for Vane campaigns",
+    // Circle rejects any non-alphanumeric character here, including hyphens and commas,
+    // with a 400 that does not name the offending field. Keep these plain.
+    description: "Onchain referral attribution for Vane campaigns",
     walletId,
     blockchain: BLOCKCHAIN as never,
     abiJson: JSON.stringify(registry.abi),
@@ -65,21 +109,19 @@ async function main() {
   });
 
   const registryId = registryRes.data?.contractId;
-  const registryAddress = registryRes.data?.contractAddress;
   console.log(`  contractId ${registryId}`);
-  console.log(`  address    ${registryAddress ?? "(pending — check the console)"}`);
+  if (!registryId) throw new Error("Circle did not return a contractId for the registry");
 
-  if (!registryAddress) {
-    console.log("\nRegistry address is still pending. Re-run once it is confirmed to deploy the escrow.");
-    return;
-  }
+  const registryAddress =
+    registryRes.data?.contractAddress ?? (await waitForAddress(scp as never, registryId));
+  console.log(`  address    ${registryAddress}`);
 
   const agentAddress = requireEnv("VANE_AGENT_ADDRESS");
 
   console.log("\nDeploying VaneEscrow to Arc…");
   const escrowRes = await scp.deployContract({
     name: "Vane Escrow",
-    description: "Campaign budgets in USDC, released only against verified results",
+    description: "Campaign budgets in USDC released only against verified results",
     walletId,
     blockchain: BLOCKCHAIN as never,
     abiJson: JSON.stringify(escrow.abi),
@@ -89,15 +131,38 @@ async function main() {
       registryAddress,
       agentAddress,
       feeRecipient || agentAddress,
+      agentAddress, // admin — must be explicit; msg.sender here is Circle's deploy factory
     ] as never,
     fee: { type: "level", config: { feeLevel: "MEDIUM" } },
     idempotencyKey: randomUUID(),
   });
 
   const escrowId = escrowRes.data?.contractId;
-  const escrowAddress = escrowRes.data?.contractAddress;
   console.log(`  contractId ${escrowId}`);
-  console.log(`  address    ${escrowAddress ?? "(pending)"}`);
+  if (!escrowId) throw new Error("Circle did not return a contractId for the escrow");
+  const escrowAddress = escrowRes.data?.contractAddress ?? (await waitForAddress(scp as never, escrowId));
+  console.log(`  address    ${escrowAddress}`);
+
+  // The stand-in advertiser. Deployed alongside so the loop can be shown end to end
+  // without a real business having integrated anything.
+  const demo = artifact("DemoBusiness");
+  console.log("\nDeploying DemoBusiness to Arc…");
+  const demoRes = await scp.deployContract({
+    name: "Vane DemoBusiness",
+    description: "Stand in advertiser emitting verifiable onchain conversions",
+    walletId,
+    blockchain: BLOCKCHAIN as never,
+    abiJson: JSON.stringify(demo.abi),
+    bytecode: demo.bytecode,
+    constructorParameters: [registryAddress, agentAddress] as never,
+    fee: { type: "level", config: { feeLevel: "MEDIUM" } },
+    idempotencyKey: randomUUID(),
+  });
+  const demoId = demoRes.data?.contractId;
+  console.log(`  contractId ${demoId}`);
+  if (!demoId) throw new Error("Circle did not return a contractId for the demo business");
+  const demoAddress = demoRes.data?.contractAddress ?? (await waitForAddress(scp as never, demoId));
+  console.log(`  address    ${demoAddress}`);
 
   const deployments = {
     chainId: 5042002,
@@ -106,18 +171,29 @@ async function main() {
     deployedAt: new Date().toISOString(),
     registry: { contractId: registryId, address: registryAddress },
     escrow: { contractId: escrowId, address: escrowAddress },
+    demoBusiness: { contractId: demoId, address: demoAddress },
   };
   writeFileSync(join(root, "deployments.json"), JSON.stringify(deployments, null, 2));
 
   console.log("\nWritten to deployments.json. Add these to your .env:\n");
   console.log(`VANE_REGISTRY_ADDRESS=${registryAddress}`);
   console.log(`VANE_ESCROW_ADDRESS=${escrowAddress ?? ""}`);
+  console.log(`VANE_DEMO_BUSINESS_ADDRESS=${demoAddress ?? ""}`);
   console.log(`CIRCLE_REGISTRY_CONTRACT_ID=${registryId}`);
   console.log(`CIRCLE_ESCROW_CONTRACT_ID=${escrowId}`);
   console.log(`\nExplorer: https://testnet.arcscan.app/address/${escrowAddress ?? registryAddress}`);
 }
 
 main().catch((err) => {
-  console.error(err);
+  // Circle returns the useful part in the response body; the SDK's Error message is
+  // only ever "API parameter invalid", which says nothing about which parameter.
+  const body = err?.response?.data ?? err?.data ?? null;
+  if (body?.errors?.length) {
+    console.error("\nCircle rejected these fields:");
+    for (const e of body.errors) console.error(`  ${e.location}: ${e.message}`);
+  } else if (body) {
+    console.error("\nCircle response:\n", JSON.stringify(body, null, 2));
+  }
+  console.error(`\n${err?.message ?? err}`);
   process.exit(1);
 });

@@ -6,10 +6,17 @@
   "description": "Vane escrow vault and referral registry — Solidity for Arc.",
   "scripts": {
     "compile": "tsx scripts/compile.ts",
-    "deploy": "tsx scripts/deploy.ts"
+    "entity-secret": "tsx scripts/entity-secret.ts",
+    "bootstrap": "tsx scripts/bootstrap.ts",
+    "deploy": "tsx scripts/deploy.ts",
+    "deploy:viem": "tsx scripts/deploy-viem.ts",
+    "verify": "tsx scripts/verify.ts",
+    "e2e": "tsx scripts/e2e.ts"
   },
   "dependencies": {
+    "@circle-fin/developer-controlled-wallets": "^10.8.0",
     "@circle-fin/smart-contract-platform": "^10.8.0",
+    "viem": "^2.55.5",
     "dotenv": "^17.2.3",
     "solc": "^0.8.36"
   },

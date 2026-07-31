@@ -10,6 +10,13 @@ broadcast/
 *.log
 .DS_Store
 deployments.json
+e2e-wallets.json
+sybil-wallets.json
+tasker-wallets.json
+
+# Circle entity-secret recovery file — the only way back into the wallets. Never commit.
+recovery_file_*.dat
+*recovery*.dat
 
 # pitch deck — a submission artifact, not part of the app
 app/public/deck.html

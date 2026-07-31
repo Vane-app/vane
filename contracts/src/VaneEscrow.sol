@@ -42,6 +42,14 @@ contract VaneEscrow {
 
     uint16 public constant MAX_FEE_BPS = 1000; // hard ceiling, 10%
 
+    /// @notice How long after `endsAt` the agent may still settle work already done.
+    /// @dev Without this, a conversion moments before expiry can never be paid: the
+    ///      agent needs time to observe post-conversion behaviour before judging, and
+    ///      `expire` would already have sent the budget home. The window closes the
+    ///      gap where an honest tasker does real work and is stranded. New conversions
+    ///      after `endsAt` are not eligible — the grace covers settlement latency only.
+    uint64 public constant SETTLE_GRACE = 1 days;
+
     enum Status {
         None,
         Active,
@@ -87,6 +95,7 @@ contract VaneEscrow {
     );
     event Held(uint256 indexed campaignId, address indexed wallet, uint256 actionIndex, string reason);
     event CampaignClosed(uint256 indexed campaignId, Status status, uint256 refunded);
+    event CampaignCancelled(uint256 indexed campaignId, uint64 refundableAt);
     event AgentUpdated(address indexed agent);
     event FeeUpdated(uint16 feeBps, address feeRecipient);
 
@@ -112,11 +121,18 @@ contract VaneEscrow {
         _;
     }
 
-    constructor(address _usdc, address _registry, address _agent, address _feeRecipient) {
+    /// @param _admin Passed explicitly rather than taken from `msg.sender`.
+    /// @dev Circle's Smart Contract Platform deploys through its own factory, so during
+    ///      construction `msg.sender` is that factory — not the wallet that requested the
+    ///      deploy. Assigning admin from msg.sender silently hands control of setAgent and
+    ///      setFee to an address nobody holds the key to, and the contract still deploys
+    ///      and reads fine. Take it as a parameter so ownership is explicit and verifiable.
+    constructor(address _usdc, address _registry, address _agent, address _feeRecipient, address _admin) {
+        if (_admin == address(0) || _agent == address(0)) revert BadParams();
         usdc = IERC20(_usdc);
         registry = IReferralRegistry(_registry);
         agent = _agent;
-        admin = msg.sender;
+        admin = _admin;
         feeRecipient = _feeRecipient;
     }
 
@@ -153,29 +169,39 @@ contract VaneEscrow {
         emit CampaignCreated(campaignId, msg.sender, budget, rewardPerAction, campaigns[campaignId].endsAt, bond);
     }
 
-    /// @notice Business ends a campaign early. Everything already earned is already paid;
-    ///         unspent budget and the bond return immediately.
+    /// @notice Business ends a campaign early. No new work counts from this moment.
+    /// @dev Deliberately does *not* refund on the spot. Taskers whose conversions are
+    ///      already in flight must still be payable, so the budget stays locked for
+    ///      `SETTLE_GRACE` and then returns through `expire`. A business cannot close
+    ///      the vault out from under work it has already received.
     function cancel(uint256 campaignId) external {
         Campaign storage c = campaigns[campaignId];
         if (msg.sender != c.business) revert NotBusiness();
         if (c.status != Status.Active) revert NotActive();
         c.status = Status.Cancelled;
-        uint256 refund = _refundable(c);
-        _payout(c.business, refund);
-        emit CampaignClosed(campaignId, Status.Cancelled, refund);
+        c.endsAt = uint64(block.timestamp);
+        emit CampaignCancelled(campaignId, uint64(block.timestamp) + SETTLE_GRACE);
     }
 
-    /// @notice After `endsAt`, anyone may return unspent budget to the business.
+    /// @notice Once the settlement window has closed, anyone may return unspent budget.
     /// @dev Permissionless on purpose: the business's money comes home even if Vane
     ///      is offline. This is the "money is never lost" guarantee, enforced in code.
     function expire(uint256 campaignId) external {
         Campaign storage c = campaigns[campaignId];
-        if (c.status != Status.Active) revert NotActive();
-        if (block.timestamp < c.endsAt) revert TooEarly();
+        if (c.status != Status.Active && c.status != Status.Cancelled) revert NotActive();
+        if (block.timestamp < uint256(c.endsAt) + SETTLE_GRACE) revert TooEarly();
         c.status = Status.Expired;
         uint256 refund = _refundable(c);
         _payout(c.business, refund);
         emit CampaignClosed(campaignId, Status.Expired, refund);
+    }
+
+    /// @dev A campaign can be settled against while it is running, and for `SETTLE_GRACE`
+    ///      after it ends — including after an early cancel. Once `expire` has run the
+    ///      money is gone and nothing further can be paid.
+    function _settlable(Campaign storage c) private view returns (bool) {
+        if (c.status != Status.Active && c.status != Status.Cancelled) return false;
+        return block.timestamp < uint256(c.endsAt) + SETTLE_GRACE;
     }
 
     function _refundable(Campaign storage c) private view returns (uint256) {
@@ -194,7 +220,7 @@ contract VaneEscrow {
         returns (uint256 paid)
     {
         Campaign storage c = campaigns[campaignId];
-        if (c.status != Status.Active || block.timestamp >= c.endsAt) revert NotActive();
+        if (!_settlable(c)) revert NotActive();
 
         bytes32 key = keccak256(abi.encodePacked(campaignId, wallet, actionIndex));
         if (settled[key]) revert AlreadySettled();
@@ -230,7 +256,7 @@ contract VaneEscrow {
     ) external onlyAgent returns (uint256 count) {
         if (wallets.length != actionIndexes.length) revert BadParams();
         Campaign storage c = campaigns[campaignId];
-        if (c.status != Status.Active || block.timestamp >= c.endsAt) revert NotActive();
+        if (!_settlable(c)) revert NotActive();
 
         for (uint256 i = 0; i < wallets.length; ++i) {
             if (!_settleOne(campaignId, wallets[i], actionIndexes[i], reason)) continue;
