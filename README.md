@@ -1,6 +1,10 @@
 # Vane
 
-**An autonomous marketing marketplace on Arc.** Businesses lock a USDC campaign budget in escrow and say what result they will pay for. Taskers pick campaigns from an open feed and promote them. An autonomous agent — the falcon — verifies every claimed result against on-chain evidence, settles honest work in about a second, refuses fraud with a written reason, and returns unspent budget automatically.
+**A performance marketing marketplace on Arc, where an autonomous agent replaces the middleman.** Businesses lock a USDC campaign budget in escrow and post the result they will pay for. Anyone can earn it — a person, or an autonomous agent.
+
+The falcon verifies every claimed result against on-chain evidence and settles in about a second: paying honest work, refusing fraud with a written reason published on-chain, and returning unspent budget automatically. It can judge, but it can never touch the money — the payee is fixed by the contract before the work happens.
+
+No human approval, no Net-60 wait, no 30% network fee.
 
 Built for the Programmable Money Hackathon. Entered in **Agentic Economy** (primary) and **DeFi**.
 
@@ -73,11 +77,12 @@ npm run agent
 |---|---|
 | **Arc** | All contracts and settlement. Chain `5042002`, USDC-denominated gas, sub-second finality. |
 | **USDC** | Campaign budgets, payouts, fees. Held in the 6-decimal ERC-20 view throughout. |
-| **Circle Wallets** (developer-controlled) | Invisible wallet creation at signup. SCA accounts, so Paymaster can sponsor gas. No seed phrases, ever. |
+| **Circle Wallets** (user-controlled) | Taskers and businesses. Non-custodial MPC — Vane cannot move their funds. PIN or social login at signup, no seed phrases, ever. |
+| **Circle Wallets** (developer-controlled) | The falcon's own operating wallet only. It must act autonomously, and it holds no user money. |
 | **Circle Smart Contract Platform** | Deploys and reads the vault and registry. No private key on disk. |
-| **Circle Paymaster** | Gas sponsorship, so a first-time business can fund a campaign holding nothing but USDC. |
-| **Nanopayments** | `settleBatch` amortises streaming revenue-share payouts — sub-cent settlements that are uneconomic on any traditional rail. |
-| **Circle agent payments** | The falcon pays for its own verification data in USDC, autonomously. A machine-to-machine economy inside the human marketplace. |
+| **Circle Paymaster** | Wallets are SCA so gas can be sponsored. *Not yet wired — gas is currently paid from each wallet's own USDC.* |
+| **Circle Nanopayments** (Gateway) | Gas-free USDC down to $0.000001 via x402 + EIP-3009, batched offchain. Arc Testnet supported. *The falcon's verification-data purchases are the intended fit — see below.* |
+| **`settleBatch`** | Our own on-chain batching in `VaneEscrow.sol`. Not a Circle product — many escrow payouts amortised into one transaction. |
 | **CCTP** | Arc domain `26`. Cross-chain campaign funding — designed for, deliberately not in the MVP. |
 
 ## Trust model
@@ -85,6 +90,7 @@ npm run agent
 The agent is powerful enough to be useful and too weak to be dangerous. This is enforced in the contract, not in the agent's code.
 
 - **The vault holds the money.** The agent never custodies user funds.
+- **Neither does Vane.** Taskers and businesses hold **user-controlled** Circle wallets — MPC, non-custodial, keyshare never reaches our servers. Vane cannot move a user's balance. Only the falcon's own operating wallet is developer-controlled, and it holds nothing but Vane's own money.
 - **The agent cannot choose a payee.** `settle()` derives the recipient from the referral seal recorded *before* the conversion. There is no arbitrary-recipient path, so a stolen agent key cannot drain a budget — the worst case is paying a genuinely attributed tasker early.
 - **Amounts are capped in the contract.** Per-payout by `rewardPerAction`, total by the funded budget.
 - **Refunds are permissionless.** After `endsAt`, anyone can return unspent budget to the business. The business's money comes home even if Vane is gone.
@@ -127,9 +133,14 @@ Deterministic checks decide the overwhelming majority of cases, which keeps cost
 - [x] Fraud decision engine with written reasoning
 - [x] Circle Wallets, Smart Contract Platform and agent-payment integrations
 - [x] Offline demo of the decision engine
-- [ ] Contracts deployed to Arc testnet
-- [ ] Front end wired to live contracts
-- [ ] End-to-end settlement on Arc
+- [x] Contracts deployed and verified on Arc testnet
+- [x] End-to-end settlement on Arc — real USDC, reproducible via `npm run e2e`
+- [x] On-chain refusal of a real sybil farm, with an enforced honest control
+- [x] Autonomous tasker agent — a machine earning USDC per verified result
+- [x] Streaming rev-share via `settleBatch` — 12 sub-cent payouts in one transaction
+- [x] User-controlled wallets: taskers and businesses hold their own keys, and sign their own on-chain actions
+- [ ] Circle Nanopayments for gas-free sub-cent payouts
+- [ ] Conversion intake wired to the live registry
 
 ## Network
 
@@ -140,3 +151,44 @@ Deterministic checks decide the overwhelming majority of cases, which keeps cost
 | Explorer | `https://testnet.arcscan.app` |
 | USDC | `0x3600000000000000000000000000000000000000` (6 dp ERC-20 view) |
 | Faucet | `https://faucet.circle.com` |
+
+## Deployed contracts
+
+Live on Arc testnet. `npm run verify -w @vane/contracts` reads them back and checks the wiring.
+
+| Contract | Address |
+|---|---|
+| `VaneEscrow` | [`0x1854ab4ef121e5c0adc0939ecc6fa55ea0b098a2`](https://testnet.arcscan.app/address/0x1854ab4ef121e5c0adc0939ecc6fa55ea0b098a2) |
+| `ReferralRegistry` | [`0x7b4422c2186aa7a30b24ef61f26bd833de639bc8`](https://testnet.arcscan.app/address/0x7b4422c2186aa7a30b24ef61f26bd833de639bc8) |
+| `DemoBusiness` | [`0xfc2914b40360d0a33d5a45438b287683ddb20bbf`](https://testnet.arcscan.app/address/0xfc2914b40360d0a33d5a45438b287683ddb20bbf) |
+| The falcon | [`0xc1a6d325c91bff08906acee76023effc7f70a5ed`](https://testnet.arcscan.app/address/0xc1a6d325c91bff08906acee76023effc7f70a5ed) |
+
+First settlement: [`0xdca9a49b…c78d68`](https://testnet.arcscan.app/tx/0xdca9a49b222cf9b3e83964fa3b3ea61705de7446c43fe1c67dfbec2776c78d68) — $0.50 to the tasker, $0.0125 fee, against a referral sealed on-chain before the conversion.
+
+## Run it against the live chain
+
+Three commands, three claims, each independently checkable on the explorer.
+
+```bash
+npm run e2e    -w @vane/contracts   # the loop: fund → refer → convert → settle
+npm run sybil  -w @vane/agent       # the refusal: a real sybil farm, refused on-chain
+npm run tasker -w @vane/agent       # a machine takes work and is paid for it
+```
+
+**`e2e`** locks USDC in escrow, claims a referral code, converts a referred wallet, and
+settles. The tasker receives the full posted rate; the fee comes out of the business's
+budget, not the payout.
+
+**`sybil`** builds an actual fraud pattern — one funder, several fresh wallets, all
+sealed and converting together — and lets the decision engine judge it. It refuses all
+of them and writes the reasons on-chain. The same run then re-judges an honest referral
+as a control and **exits non-zero if that control is ever refused**, so the engine cannot
+quietly become one that refuses everything.
+
+**`tasker`** is the one that is hard to copy. An autonomous agent with its own wallet
+reads the open campaign feed, prices each campaign, claims a code, brings customers, and
+is paid per verified result — then reports its own profit and loss. No human approves any
+step, and it is judged by exactly the same engine as a human tasker.
+
+The same engine scored the sybil farm **80/100 → refused** and the agent's customers
+**25/100 → paid**, in consecutive runs against the same contracts.
