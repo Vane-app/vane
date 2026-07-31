@@ -1,6 +1,9 @@
-import { initiateSmartContractPlatformClient } from "@circle-fin/smart-contract-platform";
 import { randomUUID } from "node:crypto";
 import { config } from "../config.js";
+
+type ScpClient = Awaited<
+  ReturnType<typeof import("@circle-fin/smart-contract-platform").initiateSmartContractPlatformClient>
+>;
 
 /**
  * Circle Smart Contract Platform.
@@ -11,13 +14,15 @@ import { config } from "../config.js";
  * writes always go through the Wallets client (see ./wallets.ts).
  */
 
-let client: ReturnType<typeof initiateSmartContractPlatformClient> | null = null;
+let client: ScpClient | null = null;
 
-export function scp() {
+/** Async for the same CJS-interop reason as the wallets client. See ./wallets.ts. */
+export async function scp(): Promise<ScpClient> {
   if (!client) {
     if (!config.circle.apiKey || !config.circle.entitySecret) {
       throw new Error("CIRCLE_API_KEY and ENTITY_SECRET are required for the Smart Contract Platform.");
     }
+    const { initiateSmartContractPlatformClient } = await import("@circle-fin/smart-contract-platform");
     client = initiateSmartContractPlatformClient({
       apiKey: config.circle.apiKey,
       entitySecret: config.circle.entitySecret,
@@ -35,7 +40,7 @@ export async function deployContract(params: {
   bytecode: string;
   constructorParameters?: unknown[];
 }) {
-  const res = await scp().deployContract({
+  const res = await (await scp()).deployContract({
     name: params.name,
     description: params.description,
     walletId: params.walletId,
@@ -55,7 +60,7 @@ export async function read(params: {
   abiFunctionSignature: string;
   abiParameters?: unknown[];
 }) {
-  const res = await scp().queryContract({
+  const res = await (await scp()).queryContract({
     address: params.address,
     blockchain: config.circleBlockchain as never,
     abiFunctionSignature: params.abiFunctionSignature,

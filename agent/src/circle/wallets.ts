@@ -1,6 +1,9 @@
-import { initiateDeveloperControlledWalletsClient } from "@circle-fin/developer-controlled-wallets";
 import { randomUUID } from "node:crypto";
 import { config, USDC_ADDRESS } from "../config.js";
+
+type WalletsClient = Awaited<
+  ReturnType<typeof import("@circle-fin/developer-controlled-wallets").initiateDeveloperControlledWalletsClient>
+>;
 
 /**
  * Circle Developer-Controlled Wallets.
@@ -12,9 +15,16 @@ import { config, USDC_ADDRESS } from "../config.js";
  * flow — fund a campaign, earn, cash out — without touching a crypto concept.
  */
 
-let client: ReturnType<typeof initiateDeveloperControlledWalletsClient> | null = null;
+let client: WalletsClient | null = null;
 
-export function wallets() {
+/**
+ * The Circle SDK ships both an ESM and a CJS build, and tsx resolves the CJS one, where
+ * a static `import { initiateDeveloperControlledWalletsClient }` fails at load with
+ * "does not provide an export named". Importing dynamically goes through Node's CJS
+ * interop and works under tsx, plain node and Next alike — which is why this getter is
+ * async rather than a plain function.
+ */
+export async function wallets(): Promise<WalletsClient> {
   if (!client) {
     if (!config.circle.apiKey || !config.circle.entitySecret) {
       throw new Error(
@@ -22,6 +32,7 @@ export function wallets() {
           "then register the entity secret ciphertext before first use.",
       );
     }
+    const { initiateDeveloperControlledWalletsClient } = await import("@circle-fin/developer-controlled-wallets");
     client = initiateDeveloperControlledWalletsClient({
       apiKey: config.circle.apiKey,
       entitySecret: config.circle.entitySecret,
@@ -32,7 +43,7 @@ export function wallets() {
 
 /** One wallet set holds every Vane user wallet. Run once, keep the id. */
 export async function createWalletSet(name = "Vane Users") {
-  const res = await wallets().createWalletSet({ name, idempotencyKey: randomUUID() });
+  const res = await (await wallets()).createWalletSet({ name, idempotencyKey: randomUUID() });
   return res.data?.walletSet;
 }
 
@@ -42,7 +53,7 @@ export async function createWalletSet(name = "Vane Users") {
  */
 export async function createUserWallet(refId: string, walletSetId = config.circle.walletSetId) {
   if (!walletSetId) throw new Error("CIRCLE_WALLET_SET_ID is not set — run createWalletSet first.");
-  const res = await wallets().createWallets({
+  const res = await (await wallets()).createWallets({
     walletSetId,
     blockchains: [config.circleBlockchain as never],
     count: 1,
@@ -54,7 +65,7 @@ export async function createUserWallet(refId: string, walletSetId = config.circl
 }
 
 export async function getBalance(walletId: string) {
-  const res = await wallets().getWalletTokenBalance({ id: walletId });
+  const res = await (await wallets()).getWalletTokenBalance({ id: walletId });
   const usdc = res.data?.tokenBalances?.find(
     (b) => b.token?.tokenAddress?.toLowerCase() === USDC_ADDRESS.toLowerCase() || b.token?.symbol === "USDC",
   );
@@ -73,7 +84,7 @@ export async function executeContract(params: {
   /** Reusing an idempotency key makes a retry safe — it will never double-pay. */
   idempotencyKey?: string;
 }) {
-  const res = await wallets().createContractExecutionTransaction({
+  const res = await (await wallets()).createContractExecutionTransaction({
     walletId: params.walletId,
     contractAddress: params.contractAddress,
     abiFunctionSignature: params.abiFunctionSignature,
@@ -89,7 +100,7 @@ export async function waitForTransaction(id: string, timeoutMs = 90_000) {
   const terminal = new Set(["COMPLETE", "FAILED", "DENIED", "CANCELLED"]);
   const started = Date.now();
   while (Date.now() - started < timeoutMs) {
-    const res = await wallets().getTransaction({ id });
+    const res = await (await wallets()).getTransaction({ id });
     const state = res.data?.transaction?.state;
     if (state && terminal.has(state)) return res.data?.transaction;
     await new Promise((r) => setTimeout(r, 2_000));
@@ -105,7 +116,7 @@ export async function transferUsdc(params: {
   amount: string;
   tokenId: string;
 }) {
-  const res = await wallets().createTransaction({
+  const res = await (await wallets()).createTransaction({
     walletId: params.walletId,
     tokenId: params.tokenId,
     destinationAddress: params.to,

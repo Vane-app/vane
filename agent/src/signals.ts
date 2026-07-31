@@ -16,6 +16,25 @@ export const publicClient = createPublicClient({
   transport: http(config.rpcUrl),
 });
 
+/**
+ * Arc's public RPC rate-limits by answering -32011 "request limit reached" rather than
+ * an HTTP 429, so viem's built-in retry does not recognise it and gives up immediately.
+ * Every read the falcon makes goes through here: a verification that fails because the
+ * RPC was busy must never be mistaken for a verification that failed on the evidence.
+ */
+export async function withRetry<T>(fn: () => Promise<T>, attempts = 6): Promise<T> {
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      const limited = String((err as Error)?.message ?? "").includes("request limit");
+      if (!limited || i === attempts - 1) throw err;
+      await new Promise((r) => setTimeout(r, 800 * 2 ** i));
+    }
+  }
+  throw new Error("unreachable");
+}
+
 /** Simple in-process cache — Arc is fast, but we still don't re-ask the same block twice. */
 const sealCache = new Map<string, number>();
 
@@ -29,23 +48,27 @@ export async function walletSignals(
   const cacheKey = `${campaignId}:${wallet}`;
   let sealed = sealCache.get(cacheKey);
   if (sealed === undefined) {
-    const onChain = await publicClient.readContract({
-      address: config.registryAddress,
-      abi: registryAbi,
-      functionName: "sealedAt",
-      args: [campaignId, wallet],
-    });
+    const onChain = await withRetry(() =>
+      publicClient.readContract({
+        address: config.registryAddress as `0x${string}`,
+        abi: registryAbi,
+        functionName: "sealedAt",
+        args: [campaignId, wallet],
+      }),
+    );
     sealed = Number(onChain);
     sealCache.set(cacheKey, sealed);
   }
 
-  const [txCount, txCountNow, balance] = await Promise.all([
+  // Sequential rather than Promise.all: three simultaneous reads per wallet is exactly
+  // what trips the public RPC's limiter when judging a batch.
+  const txCount = await withRetry(() =>
     publicClient.getTransactionCount({ address: wallet, blockNumber: conversionBlock }),
-    publicClient.getTransactionCount({ address: wallet }),
-    publicClient
-      .readContract({ address: USDC_ADDRESS, abi: erc20Abi, functionName: "balanceOf", args: [wallet] })
-      .catch(() => 0n),
-  ]);
+  );
+  const txCountNow = await withRetry(() => publicClient.getTransactionCount({ address: wallet }));
+  const balance = await withRetry(() =>
+    publicClient.readContract({ address: USDC_ADDRESS, abi: erc20Abi, functionName: "balanceOf", args: [wallet] }),
+  ).catch(() => 0n);
 
   return {
     sealedAt: sealed,
@@ -63,7 +86,7 @@ export async function walletSignals(
  * approximation an MVP can make from RPC alone.
  */
 async function firstSeenAt(wallet: `0x${string}`, sealedAt: number): Promise<number> {
-  const nonce = await publicClient.getTransactionCount({ address: wallet });
+  const nonce = await withRetry(() => publicClient.getTransactionCount({ address: wallet }));
   return nonce === 0 ? sealedAt : 0;
 }
 

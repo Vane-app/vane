@@ -56,12 +56,22 @@ export const config = {
   circleBlockchain: process.env.CIRCLE_BLOCKCHAIN ?? "ARC-TESTNET",
 } as const;
 
-/** Format a 6-decimal USDC amount for humans. */
+/**
+ * Format a 6-decimal USDC amount for humans.
+ *
+ * Two decimals is wrong for this product: a $0.002 rev-share payout renders as "$0.00",
+ * which is the exact opposite of the point. Sub-cent amounts keep the precision that
+ * makes them interesting; ordinary amounts stay in cents.
+ */
 export function formatUsdc(amount: bigint | number | string): string {
   const v = typeof amount === "bigint" ? amount : BigInt(amount);
-  const whole = v / 1_000_000n;
-  const frac = (v % 1_000_000n).toString().padStart(6, "0").slice(0, 2);
-  return `$${whole.toLocaleString()}.${frac}`;
+  const neg = v < 0n;
+  const abs = neg ? -v : v;
+  const whole = abs / 1_000_000n;
+  const raw = (abs % 1_000_000n).toString().padStart(6, "0");
+  // Below one cent, show every significant digit rather than rounding it away.
+  const frac = whole === 0n && abs < 10_000n ? raw.replace(/0+$/, "").padEnd(2, "0") : raw.slice(0, 2);
+  return `${neg ? "-" : ""}$${whole.toLocaleString()}.${frac}`;
 }
 
 /** Parse a human USDC amount into 6-decimal base units. */

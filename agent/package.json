@@ -8,11 +8,15 @@
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
     "demo": "tsx src/demo.ts",
+    "sybil": "tsx src/sybil.ts",
+    "tasker": "tsx src/tasker.ts",
+    "nano": "tsx src/nano.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@circle-fin/developer-controlled-wallets": "^10.8.0",
     "@circle-fin/smart-contract-platform": "^10.8.0",
+    "@circle-fin/x402-batching": "^3.2.0",
     "dotenv": "^17.2.3",
     "viem": "^2.55.5"
   },

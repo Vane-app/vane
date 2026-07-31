@@ -1,4 +1,4 @@
-import "dotenv/config";
+import "./env.js";
 import { config, formatUsdc } from "./config.js";
 import { publicClient } from "./signals.js";
 import { registryAbi } from "./abi.js";
