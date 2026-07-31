@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { createUser, updateUser, findUserByEmail } from "../../../lib/store";
-import { createUserWallet } from "../../../lib/circle";
 import { setSession, clearSession } from "../../../lib/session";
 
 /**
@@ -19,13 +18,28 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "A valid email is required." }, { status: 400 });
   }
 
-  const isNew = !findUserByEmail(email);
-  const user = createUser(email, body.role ?? "tasker");
+  const existing = findUserByEmail(email);
+  const isNew = !existing;
 
-  if (isNew) {
-    const wallet = await createUserWallet(user.id);
-    updateUser(user.id, { walletId: wallet.walletId, walletAddress: wallet.address });
+  // Only an explicit role means "I am joining this side". Logging in sends no role at
+  // all, and must never change what someone already is.
+  const wanted: "tasker" | "business" | null =
+    body.role === "business" ? "business" : body.role === "tasker" ? "tasker" : null;
+
+  const user = createUser(email, wanted ?? "tasker");
+
+  // One account, two sides. Coming back through the other front door promotes the
+  // account to "both" rather than overwriting — a person who promotes campaigns and
+  // also advertises their own is one user, not two. `createUser` returns the existing
+  // record untouched, so the role has to be reconciled here.
+  if (existing && wanted && existing.role !== wanted && existing.role !== "both") {
+    updateUser(existing.id, { role: "both" });
   }
+
+  // Deliberately no wallet here. Signing up must not mint a wallet Vane controls —
+  // that would make us a custodian of the user's earnings before they have agreed to
+  // anything. The wallet is created in onboarding, by the user, against a keyshare we
+  // never see. See lib/circle-user.ts.
   if (body.name || body.avatar) {
     updateUser(user.id, {
       ...(body.name ? { name: String(body.name) } : {}),

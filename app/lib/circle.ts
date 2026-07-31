@@ -1,15 +1,15 @@
 import { randomUUID, createHash } from "node:crypto";
 
 /**
- * Circle Wallets — server side.
+ * Circle Wallets — developer-controlled. **Not for users.**
  *
- * Creates a developer-controlled wallet per user during sign-up, so onboarding
- * stays seedless and invisible. When Circle credentials aren't configured yet,
- * it returns a deterministic demo wallet so the whole flow still works — the app
- * never blocks on secrets it doesn't have.
+ * Vane controls these, which makes them the wrong tool for a tasker's or a business's
+ * money: we must never be able to move it. Users get user-controlled MPC wallets
+ * instead — see ./circle-user.ts.
  *
- * Real path uses @circle-fin/developer-controlled-wallets with an SCA account
- * (required for Paymaster gas sponsorship on Arc).
+ * This module is kept for Vane's own operational wallets, where developer control is
+ * correct because the money is Vane's and the falcon must act with no human in the
+ * loop. Do not call it from a signup path.
  */
 
 const CONFIGURED = Boolean(
