@@ -10,7 +10,7 @@ const USDC = "0x3600000000000000000000000000000000000000";
 
 /** GET /api/campaigns — the marketplace inventory (active campaigns). */
 export async function GET() {
-  return NextResponse.json({ campaigns: listCampaigns() });
+  return NextResponse.json({ campaigns: await listCampaigns() });
 }
 
 /**
@@ -30,7 +30,7 @@ export async function GET() {
 export async function POST(req: Request) {
   const id = await currentUserId();
   if (!id) return NextResponse.json({ error: "Sign in first." }, { status: 401 });
-  const u = getUser(id);
+  const u = await getUser(id);
   if (!u) return NextResponse.json({ error: "Sign in first." }, { status: 401 });
 
   const b = await req.json().catch(() => ({}));
@@ -41,7 +41,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Check the rate and budget." }, { status: 400 });
   }
 
-  const c = createCampaign({
+  const c = await createCampaign({
     business: name,
     blurb: String(b.blurb ?? ""),
     initial: name[0]?.toUpperCase() ?? "V",
@@ -79,7 +79,7 @@ export async function POST(req: Request) {
      * confirm step re-reads the chain and corrects it.
      */
     const predictedId = await nextEscrowCampaignId(escrow as `0x${string}`).catch(() => null);
-    if (predictedId !== null) updateCampaign(c.id, { escrowCampaignId: predictedId });
+    if (predictedId !== null) await updateCampaign(c.id, { escrowCampaignId: predictedId });
 
     const durationSeconds = Math.round(Number(b.durationDays ?? 30) * 86_400);
     const common = {

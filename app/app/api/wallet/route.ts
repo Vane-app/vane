@@ -18,7 +18,7 @@ export async function GET() {
   const userId = await currentUserId();
   if (!userId) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
 
-  const user = getUser(userId);
+  const user = await getUser(userId);
   if (!user) return NextResponse.json({ error: "Unknown user." }, { status: 401 });
 
   if (!userWalletsConfigured) {
@@ -35,7 +35,7 @@ export async function GET() {
     // Circle is the source of truth for the address; mirror it so the rest of the
     // app can read it without a round-trip.
     if (session.address && session.address !== user.walletAddress) {
-      updateUser(userId, { walletAddress: session.address });
+      await updateUser(userId, { walletAddress: session.address });
     }
 
     return NextResponse.json({

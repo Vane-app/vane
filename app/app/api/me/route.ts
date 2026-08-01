@@ -7,10 +7,10 @@ export async function GET() {
   const id = await currentUserId();
   if (!id) return NextResponse.json({ user: null }, { status: 200 });
 
-  const u = getUser(id);
+  const u = await getUser(id);
   if (!u) return NextResponse.json({ user: null }, { status: 200 });
 
-  const e = earningsFor(id);
+  const e = await earningsFor(id);
   return NextResponse.json({
     user: {
       id: u.id,

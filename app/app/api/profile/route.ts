@@ -11,7 +11,7 @@ import type { Industry } from "../../../lib/data";
  */
 export async function PUT(req: Request) {
   const uid = await currentUserId();
-  if (!uid || !getUser(uid)) return NextResponse.json({ error: "Sign in first." }, { status: 401 });
+  if (!uid || !await getUser(uid)) return NextResponse.json({ error: "Sign in first." }, { status: 401 });
 
   const b = await req.json().catch(() => ({}));
   const patch: Record<string, unknown> = {};
@@ -21,6 +21,6 @@ export async function PUT(req: Request) {
   if (typeof b.name === "string") patch.name = b.name;
   if (typeof b.avatar === "string") patch.avatar = b.avatar;
 
-  const u = updateUser(uid, patch);
+  const u = await updateUser(uid, patch);
   return NextResponse.json({ ok: true, strengths: u?.strengths ?? [] });
 }

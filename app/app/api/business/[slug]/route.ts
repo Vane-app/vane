@@ -16,13 +16,15 @@ import { slugFor } from "../../../../lib/data";
 export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }> }) {
   const { slug } = await ctx.params;
 
-  const campaigns = listCampaigns().filter((c) => slugFor(c.business) === slug);
+  const all = await listCampaigns();
+  const campaigns = all.filter((c) => slugFor(c.business) === slug);
   if (campaigns.length === 0) {
     return NextResponse.json({ error: "No such business." }, { status: 404 });
   }
 
   const first = campaigns[0];
-  const takes = campaigns.flatMap((c) => takesForCampaign(c.id));
+  // One await per campaign, gathered — not an await inside a synchronous map.
+  const takes = (await Promise.all(campaigns.map((c) => takesForCampaign(c.id)))).flat();
 
   return NextResponse.json({
     name: first.business,

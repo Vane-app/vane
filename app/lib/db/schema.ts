@@ -53,13 +53,29 @@ export const businesses = pgTable("businesses", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+/**
+ * Campaigns.
+ *
+ * Columns mirror the `Campaign` type the UI already renders, so a campaign
+ * round-trips through Postgres unchanged. The earlier draft of this table predated
+ * that type and would have dropped the business name, colour, bonded flag and
+ * ownership on write — a listing that came back from the database looking like a
+ * different campaign than the one that was posted.
+ */
 export const campaigns = pgTable("campaigns", {
   id: serial("id").primaryKey(),
-  businessId: text("business_id").notNull(),
+  /** The account that posted it. Null on the seeded set, which belongs to nobody. */
+  ownerId: text("owner_id"),
+  business: text("business").notNull(),
+  blurb: text("blurb").notNull().default(""),
+  initial: text("initial").notNull().default("V"),
+  colour: text("colour").notNull().default("#3e6b8f"),
+  bonded: boolean("bonded").notNull().default(false),
+  web3: boolean("web3").notNull().default(false),
+  /** The paid event: signup | post | trade … */
+  kind: text("kind").notNull().default("signup"),
   taskType: text("task_type").notNull(), // referral | content | onchain | bounty
   industry: text("industry").notNull(),
-  title: text("title").notNull(),
-  whatCounts: text("what_counts").notNull(),
   rewardPerAction: bigint("reward_per_action", { mode: "number" }).notNull(),
   budget: bigint("budget", { mode: "number" }).notNull(),
   spent: bigint("spent", { mode: "number" }).notNull().default(0),
@@ -68,6 +84,7 @@ export const campaigns = pgTable("campaigns", {
   rateLabel: text("rate_label").default(""),
   endsAt: bigint("ends_at", { mode: "number" }).notNull(),
   status: text("status").notNull().default("active"),
+  /** The id inside VaneEscrow, once funding has confirmed on Arc. */
   escrowCampaignId: bigint("escrow_campaign_id", { mode: "number" }),
   bannerUrl: text("banner_url").default(""),
   taken: integer("taken").notNull().default(0),

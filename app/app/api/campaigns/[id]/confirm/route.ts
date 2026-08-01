@@ -16,10 +16,10 @@ import { escrowCampaign, nextEscrowCampaignId } from "../../../../../lib/chain";
  */
 export async function POST(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   const uid = await currentUserId();
-  if (!uid || !getUser(uid)) return NextResponse.json({ error: "Sign in first." }, { status: 401 });
+  if (!uid || !await getUser(uid)) return NextResponse.json({ error: "Sign in first." }, { status: 401 });
 
   const { id } = await ctx.params;
-  const campaign = getCampaign(Number(id));
+  const campaign = await getCampaign(Number(id));
   if (!campaign) return NextResponse.json({ error: "Campaign not found." }, { status: 404 });
 
   const escrow = process.env.VANE_ESCROW_ADDRESS as `0x${string}` | undefined;
@@ -38,7 +38,7 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
     if (!onChain?.funded) continue;
     if (String(onChain.budget) !== String(campaign.budget)) continue;
 
-    updateCampaign(campaign.id, { escrowCampaignId: candidate });
+    await updateCampaign(campaign.id, { escrowCampaignId: candidate });
     return NextResponse.json({
       funded: true,
       escrowCampaignId: candidate,

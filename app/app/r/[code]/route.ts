@@ -10,10 +10,10 @@ import { recordClick, findTakeByCode, getCampaign } from "../../../lib/store";
  */
 export async function GET(_req: Request, ctx: { params: Promise<{ code: string }> }) {
   const { code } = await ctx.params;
-  const take = recordClick(code);
+  const take = await recordClick(code);
 
-  const found = findTakeByCode(code);
-  const campaign = found ? getCampaign(found.campaignId) : undefined;
+  const found = await findTakeByCode(code);
+  const campaign = found ? await getCampaign(found.campaignId) : undefined;
 
   // In production this redirects to the business's own site with the ref tagged.
   // Here we send them to the campaign so the flow is visible end to end.

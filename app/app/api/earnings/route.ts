@@ -7,9 +7,10 @@ export async function GET() {
   const uid = await currentUserId();
   if (!uid) return NextResponse.json({ error: "Sign in first." }, { status: 401 });
 
-  const e = earningsFor(uid);
-  const streams = e.takes.map((t) => {
-    const c = getCampaign(t.campaignId);
+  const e = await earningsFor(uid);
+  const streams = await Promise.all(
+    e.takes.map(async (t) => {
+      const c = await getCampaign(t.campaignId);
     return {
       campaignId: t.campaignId,
       business: c?.business ?? "Campaign",
@@ -18,9 +19,10 @@ export async function GET() {
       clicks: t.clicks,
       results: t.results,
       earned: t.earned,
-      live: (c?.status ?? "active") === "active",
-    };
-  });
+        live: (c?.status ?? "active") === "active",
+      };
+    }),
+  );
 
   return NextResponse.json({
     available: e.available,

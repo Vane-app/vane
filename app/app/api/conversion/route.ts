@@ -16,13 +16,13 @@ import { decide, type ConversionSignals } from "../../../lib/agent";
 export async function POST(req: Request) {
   const b = await req.json().catch(() => ({}));
   const refCode = String(b.refCode ?? "");
-  const take = findTakeByCode(refCode);
+  const take = await findTakeByCode(refCode);
   if (!take) return NextResponse.json({ error: "Unknown referral code." }, { status: 404 });
 
-  const campaign = getCampaign(take.campaignId);
+  const campaign = await getCampaign(take.campaignId);
   if (!campaign) return NextResponse.json({ error: "Campaign not found." }, { status: 404 });
 
-  const e = earningsFor(take.userId);
+  const e = await earningsFor(take.userId);
   const attempts = take.results;
   const approvalRate = attempts > 0 ? 1 : 0.85; // clean record so far, or neutral for a newcomer
 
@@ -39,10 +39,10 @@ export async function POST(req: Request) {
   const decision = decide(signals);
 
   if (decision.verdict === "settled") {
-    creditResult(refCode, campaign.rewardPerAction);
+    await creditResult(refCode, campaign.rewardPerAction);
   }
 
-  const after = earningsFor(take.userId);
+  const after = await earningsFor(take.userId);
   return NextResponse.json({
     decision,
     reward: decision.verdict === "settled" ? campaign.rewardPerAction : 0,

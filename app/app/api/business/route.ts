@@ -14,10 +14,11 @@ export async function GET() {
   const uid = await currentUserId();
   if (!uid) return NextResponse.json({ error: "Sign in first." }, { status: 401 });
 
-  const s = businessSummary(uid);
+  const s = await businessSummary(uid);
 
-  const campaigns = s.campaigns.map((c) => {
-    const takes = takesForCampaign(c.id);
+  const campaigns = await Promise.all(
+    s.campaigns.map(async (c) => {
+      const takes = await takesForCampaign(c.id);
     return {
       id: c.id,
       business: c.business,
@@ -34,8 +35,9 @@ export async function GET() {
       promoters: takes.length,
       results: takes.reduce((n, t) => n + t.results, 0),
       clicks: takes.reduce((n, t) => n + t.clicks, 0),
-    };
-  });
+      };
+    }),
+  );
 
   return NextResponse.json({
     locked: s.locked,

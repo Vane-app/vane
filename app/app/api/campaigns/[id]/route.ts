@@ -15,10 +15,10 @@ import { getCampaign, takesForCampaign } from "../../../../lib/store";
  */
 export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
-  const campaign = getCampaign(Number(id));
+  const campaign = await getCampaign(Number(id));
   if (!campaign) return NextResponse.json({ error: "Campaign not found." }, { status: 404 });
 
-  const takes = takesForCampaign(campaign.id);
+  const takes = await takesForCampaign(campaign.id);
 
   return NextResponse.json({
     campaign,

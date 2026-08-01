@@ -19,15 +19,15 @@ import { startSession, createContractChallenge, userWalletsConfigured } from "..
  */
 export async function POST(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   const uid = await currentUserId();
-  const user = uid ? getUser(uid) : undefined;
+  const user = uid ? await getUser(uid) : undefined;
   if (!uid || !user) return NextResponse.json({ error: "Sign in first." }, { status: 401 });
 
   const { id } = await ctx.params;
   const campaignId = Number(id);
-  const campaign = getCampaign(campaignId);
+  const campaign = await getCampaign(campaignId);
   if (!campaign) return NextResponse.json({ error: "Campaign not found." }, { status: 404 });
 
-  const take = takeCampaign(uid, campaignId);
+  const take = await takeCampaign(uid, campaignId);
   const base = process.env.NEXT_PUBLIC_APP_URL ?? "https://vane.money";
   const link = `${base.replace(/^https?:\/\//, "")}/r/${take.refCode}`;
   const payload = {
