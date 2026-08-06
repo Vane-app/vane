@@ -6,7 +6,7 @@ import { AppBar, TabBar } from "../../components/AppChrome";
 import { Logo } from "../../components/Logo";
 import { useMe } from "../../components/Me";
 import { Decisions } from "../../components/Decisions";
-import { AccountPanel } from "../../components/Account";
+import { WalletStrip } from "../../components/Account";
 import { usd } from "../../lib/data";
 
 /**
@@ -141,7 +141,7 @@ export default function Earnings() {
 
       {/* Earnings and Account used to be separate screens showing halves of the same
           thing. One dashboard: the money, then the person it belongs to. */}
-      <AccountPanel />
+      <WalletStrip />
 
       <div className="two-up">
         <section className="fade-up d3" style={{ marginBottom: 26 }}>

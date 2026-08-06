@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { TabBar, AppBar } from "../../components/AppChrome";
 import { Mascot, type FalconState } from "../../components/Mascot";
-import { AccountPanel } from "../../components/Account";
+import { WalletStrip } from "../../components/Account";
 import { CampaignControls } from "../../components/CampaignControls";
 import { Decisions } from "../../components/Decisions";
 import { Logo } from "../../components/Logo";
@@ -170,7 +170,7 @@ export default function BusinessDashboard() {
           <AgentExplainer />
         </section>
 
-        <AccountPanel />
+        <WalletStrip />
         <TabBar />
       </main>
     );
@@ -338,7 +338,7 @@ export default function BusinessDashboard() {
         </div>
       </div>
 
-      <AccountPanel />
+      <WalletStrip />
       <TabBar />
     </main>
   );

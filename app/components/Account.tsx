@@ -1,20 +1,21 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMe } from "./Me";
 
 /**
- * The "you" panel, and a sign-out that actually signs you out.
+ * Signing out, and the wallet.
  *
- * Earnings and Account were two screens showing overlapping halves of the same
- * thing — a balance on one, the wallet it lands in on the other. They are one
- * dashboard now, and this is the part that belongs to the person rather than the
- * money: their wallet, their standing, and the way out.
+ * These were one component that repeated the whole account — avatar, name, email and
+ * a sign-out button — on the dashboard, while the rail showed exactly the same thing
+ * a few hundred pixels to the left. Two identical blocks on one screen, two sign-out
+ * buttons, and on an empty dashboard the duplicate was the largest thing on the page.
  *
- * The old sign-out was `<Link href="/">`. It navigated home and left the session
- * cookie in place, so you were still logged in — a button that looked like it did
- * something and didn't.
+ * Identity lives in the rail, which is where people look for it and where it stays
+ * visible on every screen. What belongs on a dashboard is the part that changes and
+ * that you act on: the wallet the money moves through, what is in it, and the standing
+ * that decides how fast payouts clear.
  */
 
 export function SignOut({ className = "acct-signout tiny" }: { className?: string }) {
@@ -26,10 +27,11 @@ export function SignOut({ className = "acct-signout tiny" }: { className?: strin
     try {
       await fetch("/api/auth", { method: "DELETE" });
     } finally {
-      // Clear the client-side mode so the next person to sign in on this browser
-      // doesn't land in the previous user's side of the marketplace.
+      // Clear the remembered side, so the next person to sign in on this browser does
+      // not land in the previous user's half of the marketplace.
       try {
         localStorage.removeItem("vane-mode");
+        sessionStorage.clear();
       } catch {}
       router.push("/");
       router.refresh();
@@ -43,73 +45,73 @@ export function SignOut({ className = "acct-signout tiny" }: { className?: strin
   );
 }
 
-/** Wallet, standing and sign-out — shown on whichever dashboard you're on. */
-export function AccountPanel({ reputation }: { reputation?: number }) {
+/**
+ * The wallet, and what is in it.
+ *
+ * Balance matters more than it looks: gas on Arc is USDC, and a business cannot fund a
+ * campaign it cannot pay for. Showing it here is the difference between finding that
+ * out now and finding out halfway through posting.
+ */
+export function WalletStrip({ reputation }: { reputation?: number }) {
   const { me } = useMe();
   const rep = reputation ?? me?.reputation ?? 80;
+  const [balance, setBalance] = useState<number | null>(null);
 
-  return (
-    <section className="acctpanel fade-up">
-      <div className="acctpanel-head">
-        <div className="row" style={{ gap: 11, minWidth: 0 }}>
-          {me?.avatar ? (
-            <span className="face-ring" style={{ padding: 2 }}>
-              <img className="face" src={me.avatar} alt="" width={40} height={40} />
-            </span>
-          ) : (
-            <span className="avatar" style={{ width: 40, height: 40, fontSize: 15 }} aria-hidden="true">
-              {(me?.name || me?.email || "V").slice(0, 1).toUpperCase()}
-            </span>
-          )}
-          <div style={{ minWidth: 0 }}>
-            <b style={{ display: "block", fontSize: 15 }}>{me?.name || "Your account"}</b>
-            <span className="tiny">{me?.email ?? ""}</span>
-          </div>
-        </div>
-        <SignOut className="btn-quiet tiny acctpanel-out" />
-      </div>
+  useEffect(() => {
+    if (!me?.walletAddress) return;
+    let live = true;
+    fetch(`/api/wallet/balance`)
+      .then((r) => r.json())
+      .then((d) => live && typeof d.usdc === "number" && setBalance(d.usdc))
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [me?.walletAddress]);
 
-      {me?.walletAddress ? (
-        <div className="acctpanel-wallet">
-          <span className="eyebrow">Your wallet</span>
-          <code className="wallet-addr">{me.walletAddress}</code>
-          <div className="row" style={{ justifyContent: "space-between", marginTop: 9, gap: 10 }}>
-            <span className="tiny">Only you can move what&rsquo;s in it.</span>
-            <a
-              className="tiny"
-              href={`https://testnet.arcscan.app/address/${me.walletAddress}`}
-              target="_blank"
-              rel="noreferrer"
-              style={{ color: "var(--amber)", fontWeight: 700, whiteSpace: "nowrap" }}
-            >
-              Arcscan →
-            </a>
-          </div>
-        </div>
-      ) : (
-        <div className="acctpanel-wallet">
+  if (!me) return null;
+
+  if (!me.walletAddress) {
+    return (
+      <section className="walletstrip">
+        <div>
           <span className="eyebrow">Your wallet</span>
           <p className="tiny" style={{ marginTop: 6 }}>
-            Not set up yet — you&rsquo;ll create one the first time you take a campaign.
+            Not set up yet. You&rsquo;ll create one the first time you fund a campaign or take one.
           </p>
         </div>
-      )}
+      </section>
+    );
+  }
 
-      <div className="acctpanel-rep">
-        <div className="row" style={{ justifyContent: "space-between", marginBottom: 8 }}>
-          <span className="eyebrow" style={{ margin: 0 }}>
-            Reputation
-          </span>
-          <b className="num" style={{ color: "var(--amber)" }}>
-            {rep}
-          </b>
+  return (
+    <section className="walletstrip">
+      <div className="walletstrip-main">
+        <span className="eyebrow">Your wallet</span>
+        <code className="wallet-addr">{me.walletAddress}</code>
+        <div className="row" style={{ justifyContent: "space-between", marginTop: 8, gap: 10 }}>
+          <span className="tiny">Only you can move what&rsquo;s in it.</span>
+          <a
+            className="tiny"
+            href={`https://testnet.arcscan.app/address/${me.walletAddress}`}
+            target="_blank"
+            rel="noreferrer"
+            style={{ color: "var(--amber)", fontWeight: 700, whiteSpace: "nowrap" }}
+          >
+            Arcscan →
+          </a>
         </div>
-        <div className="rep-bar">
-          <i style={{ width: `${rep}%` }} />
+      </div>
+
+      <div className="walletstrip-figs">
+        <div>
+          <b className="num">{balance === null ? "—" : `$${balance.toFixed(2)}`}</b>
+          <span>USDC available</span>
         </div>
-        <p className="tiny" style={{ marginTop: 8 }}>
-          Rises with every verified result. Higher reputation clears your payouts faster.
-        </p>
+        <div>
+          <b className="num">{rep}</b>
+          <span>reputation</span>
+        </div>
       </div>
     </section>
   );
