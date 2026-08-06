@@ -7,6 +7,7 @@ import { Mascot, type FalconState } from "../../components/Mascot";
 import { AccountPanel } from "../../components/Account";
 import { CampaignControls } from "../../components/CampaignControls";
 import { Decisions } from "../../components/Decisions";
+import { Logo } from "../../components/Logo";
 import { usd } from "../../lib/data";
 
 /**
@@ -51,6 +52,7 @@ interface BizCampaign {
   business: string;
   initial: string;
   colour: string;
+  logoUrl: string | null;
   blurb: string;
   status: string;
   budget: number;
@@ -209,13 +211,7 @@ export default function BusinessDashboard() {
             {campaigns.map((c) => (
               <article key={c.id} className={`biz-camp ${c.status !== "active" ? "is-off" : ""}`}>
                 <div className="biz-camp-head">
-                  <span
-                    className="avatar"
-                    style={{ background: c.colour, width: 34, height: 34, fontSize: 13 }}
-                    aria-hidden="true"
-                  >
-                    {c.initial}
-                  </span>
+                  <Logo src={c.logoUrl} initial={c.initial} colour={c.colour} size={34} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <b style={{ display: "block", fontSize: 15 }}>
                       {c.business}

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AppBar, TabBar } from "../../../components/AppChrome";
+import { Logo } from "../../../components/Logo";
 import { Mark } from "../../../components/Falcon";
 import { useWallet } from "../../../components/Wallet";
 import {
@@ -148,9 +149,7 @@ export default function CampaignPage() {
         <div className="detail-main">
           <header className="fade-up" style={{ marginBottom: 26 }}>
             <div className="row" style={{ gap: 13, marginBottom: 16 }}>
-              <span className="avatar" style={{ background: c.colour, width: 46, height: 46, fontSize: 17 }} aria-hidden="true">
-                {c.initial}
-              </span>
+              <Logo src={c.logoUrl} initial={c.initial} colour={c.colour} size={46} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div className="row" style={{ gap: 8 }}>
                   <b style={{ fontSize: 19, letterSpacing: "-.02em" }}>{c.business}</b>

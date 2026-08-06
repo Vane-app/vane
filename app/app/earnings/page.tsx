@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AppBar, TabBar } from "../../components/AppChrome";
+import { Logo } from "../../components/Logo";
 import { useMe } from "../../components/Me";
 import { Decisions } from "../../components/Decisions";
 import { AccountPanel } from "../../components/Account";
@@ -20,6 +21,7 @@ interface Stream {
   business: string;
   initial: string;
   colour: string;
+  logoUrl: string | null;
   clicks: number;
   results: number;
   earned: number;
@@ -174,9 +176,7 @@ export default function Earnings() {
               streams.map((p) => (
                 <Link key={p.campaignId} href={`/campaign/${p.campaignId}`} className="perf-row">
                   <span className="perf-name">
-                    <span className="avatar" style={{ background: p.colour, width: 26, height: 26, fontSize: 11 }} aria-hidden="true">
-                      {p.initial}
-                    </span>
+                    <Logo src={p.logoUrl} initial={p.initial} colour={p.colour} size={26} />
                     <b>
                       {p.business}
                       {p.live && <i className="livedot" />}

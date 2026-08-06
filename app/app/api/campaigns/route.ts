@@ -54,6 +54,9 @@ export async function POST(req: Request) {
     durationDays: Number(b.durationDays ?? 30),
     bonded: Boolean(b.bonded),
     ownerId: id, // so the business dashboard can show this campaign, and only to them
+    // The business uploaded a logo at signup and it was never used anywhere. A
+    // marketplace of coloured letters looks like a placeholder, not a marketplace.
+    logoUrl: String(b.logoUrl ?? u.avatar ?? ""),
   });
 
   const escrow = process.env.VANE_ESCROW_ADDRESS;

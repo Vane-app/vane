@@ -70,6 +70,8 @@ export const campaigns = pgTable("campaigns", {
   blurb: text("blurb").notNull().default(""),
   initial: text("initial").notNull().default("V"),
   colour: text("colour").notNull().default("#3e6b8f"),
+  /** The business's own logo. Falls back to the coloured initial when absent. */
+  logoUrl: text("logo_url").default(""),
   bonded: boolean("bonded").notNull().default(false),
   web3: boolean("web3").notNull().default(false),
   /** The paid event: signup | post | trade … */

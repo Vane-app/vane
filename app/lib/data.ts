@@ -37,6 +37,9 @@ export interface Campaign {
   blurb: string;
   initial: string;
   colour: string;
+  /** The business's uploaded logo. The initial and colour are the fallback, not the
+   *  design — a marketplace of coloured letters looks like a placeholder. */
+  logoUrl?: string;
   bonded: boolean;
   /** Per verified result, 6dp USDC base units. */
   rewardPerAction: number;
@@ -99,6 +102,9 @@ export interface Performance {
   business: string;
   initial: string;
   colour: string;
+  /** The business's uploaded logo. The initial and colour are the fallback, not the
+   *  design — a marketplace of coloured letters looks like a placeholder. */
+  logoUrl?: string;
   clicks: number;
   results: number;
   /** 6dp USDC */
@@ -134,6 +140,9 @@ export interface Stream {
   business: string;
   initial: string;
   colour: string;
+  /** The business's uploaded logo. The initial and colour are the fallback, not the
+   *  design — a marketplace of coloured letters looks like a placeholder. */
+  logoUrl?: string;
   note: string;
   /** Total earned on this campaign, 6dp. */
   earned: number;
@@ -524,6 +533,9 @@ export interface BusinessProfile {
   name: string;
   initial: string;
   colour: string;
+  /** The business's uploaded logo. The initial and colour are the fallback, not the
+   *  design — a marketplace of coloured letters looks like a placeholder. */
+  logoUrl?: string;
   blurb: string;
   kind: "web2" | "web3";
   bonded: boolean;

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AppBar, TabBar } from "../../components/AppChrome";
+import { Logo } from "../../components/Logo";
 import { usd } from "../../lib/data";
 
 /**
@@ -27,6 +28,7 @@ interface Stream {
   business: string;
   initial: string;
   colour: string;
+  logoUrl: string | null;
   rewardPerAction: number;
   rateLabel: string | null;
   clicks: number;
@@ -143,13 +145,7 @@ export default function MyCampaigns() {
             return (
               <article key={s.takeId} className={`mycamp ${s.live ? "" : "is-off"}`}>
                 <div className="mycamp-head">
-                  <span
-                    className="avatar"
-                    style={{ background: s.colour, width: 34, height: 34, fontSize: 13 }}
-                    aria-hidden="true"
-                  >
-                    {s.initial}
-                  </span>
+                  <Logo src={s.logoUrl} initial={s.initial} colour={s.colour} size={34} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <b style={{ display: "block", fontSize: 15 }}>
                       {s.business}

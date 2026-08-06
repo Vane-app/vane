@@ -27,6 +27,7 @@ export async function GET() {
         business: c?.business ?? "Campaign",
         initial: c?.initial ?? "?",
         colour: c?.colour ?? "#3e6b8f",
+        logoUrl: c?.logoUrl ?? null,
         rewardPerAction: c?.rewardPerAction ?? 0,
         rateLabel: c?.rateLabel ?? null,
         clicks: t.clicks,

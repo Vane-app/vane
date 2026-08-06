@@ -33,6 +33,7 @@ export async function GET() {
         business: c.business,
         initial: c.initial,
         colour: c.colour,
+        logoUrl: c.logoUrl ?? null,
         blurb: c.blurb,
         status: c.status,
         budget: c.budget,

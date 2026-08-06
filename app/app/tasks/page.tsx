@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AppBar, TabBar } from "../../components/AppChrome";
+import { Logo } from "../../components/Logo";
 import { useProfile } from "../../components/Profile";
 import {
   allCampaigns,
@@ -65,6 +66,47 @@ export default function Browse() {
       live = false;
     };
   }, []);
+
+  /**
+   * Clearing filters, in one place.
+   *
+   * The empty state had its own inline reset, so the only way to undo a filter was to
+   * narrow far enough to find nothing — anyone who filtered down to two results and
+   * changed their mind had to undo each control by hand.
+   */
+  function clearAll() {
+    setIndustries(new Set());
+    setEfforts(new Set());
+    setVerify("all");
+    setMinPay(0);
+    setType("all");
+    setQuery("");
+  }
+
+  /** What is currently narrowing the list, so it can be shown and removed one at a time. */
+  const chips = useMemo(() => {
+    const out: { key: string; label: string; clear: () => void }[] = [];
+    if (query.trim()) out.push({ key: "q", label: `"${query.trim()}"`, clear: () => setQuery("") });
+    if (type !== "all") out.push({ key: "type", label: TASK_TYPES.find((t) => t.id === type)?.label ?? type, clear: () => setType("all") });
+    industries.forEach((i) =>
+      out.push({
+        key: `ind-${i}`,
+        label: i,
+        clear: () => setIndustries((prev) => new Set([...prev].filter((x) => x !== i))),
+      }),
+    );
+    efforts.forEach((e) =>
+      out.push({
+        key: `eff-${e}`,
+        label: EFFORT_LABEL[e] ?? e,
+        clear: () => setEfforts((prev) => new Set([...prev].filter((x) => x !== e))),
+      }),
+    );
+    if (verify !== "all")
+      out.push({ key: "ver", label: verify === "web3" ? "Onchain" : "Integration", clear: () => setVerify("all") });
+    if (minPay > 0) out.push({ key: "pay", label: `${usd(minPay)}+`, clear: () => setMinPay(0) });
+    return out;
+  }, [query, type, industries, efforts, verify, minPay]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -219,20 +261,30 @@ export default function Browse() {
             </div>
           </div>
 
+          {/* What is narrowing the list, and how to undo it — each chip on its own, or
+              all at once. Without this the only route back was to filter down to
+              nothing and use the empty state's reset. */}
+          {chips.length > 0 && (
+            <div className="mk-chips">
+              {chips.map((c) => (
+                <button key={c.key} className="mk-chip" onClick={c.clear}>
+                  {c.label}
+                  <i aria-hidden="true">×</i>
+                </button>
+              ))}
+              <button className="mk-chip mk-chip-clear" onClick={clearAll}>
+                Clear all
+              </button>
+            </div>
+          )}
+
           {filtered.length === 0 ? (
             <div className="mk-empty">
               <p>No campaigns match those filters.</p>
               <button
                 className="tiny"
                 style={{ color: "var(--amber)", fontWeight: 700 }}
-                onClick={() => {
-                  setIndustries(new Set());
-                  setEfforts(new Set());
-                  setVerify("all");
-                  setMinPay(0);
-                  setType("all");
-                  setQuery("");
-                }}
+                onClick={clearAll}
               >
                 Clear everything
               </button>
@@ -272,9 +324,7 @@ function CampaignCard({ c, forYou }: { c: Campaign; forYou?: boolean }) {
   return (
     <Link href={`/campaign/${c.id}`} className="mk-card fade-up">
       <div className="row" style={{ gap: 11, marginBottom: 14 }}>
-        <span className="avatar" style={{ background: c.colour, width: 34, height: 34, fontSize: 13 }} aria-hidden="true">
-          {c.initial}
-        </span>
+        <Logo src={c.logoUrl} initial={c.initial} colour={c.colour} size={34} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <b style={{ fontSize: 14.5, letterSpacing: "-.01em" }}>{c.business}</b>
           <span className="tiny" style={{ display: "block", marginTop: -1 }}>
