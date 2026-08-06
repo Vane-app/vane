@@ -65,6 +65,54 @@ export async function escrowCampaign(escrow: `0x${string}`, id: bigint) {
   };
 }
 
+const registryReads = parseAbi([
+  "function taskerFor(uint256 campaignId, address wallet) view returns (address)",
+]);
+
+/**
+ * The falcon's decisions about one tasker's own work.
+ *
+ * `Settled` carries the tasker, so those filter directly. `Held` only carries the
+ * converting wallet — the refusal is recorded against the claim, not the claimant —
+ * so each one is resolved back through the registry seal.
+ *
+ * A tasker seeing why their work was refused matters more than the business seeing it.
+ * The business is protecting a budget; the tasker lost a payout and is owed the reason.
+ */
+export async function decisionsForTasker(params: {
+  escrow: `0x${string}`;
+  registry: `0x${string}`;
+  tasker: `0x${string}`;
+  limit?: number;
+}): Promise<Decision[]> {
+  const { escrow, registry, tasker, limit = 25 } = params;
+  const all = await recentDecisions({ escrow, limit: 200 });
+  const lower = tasker.toLowerCase();
+
+  const mine: Decision[] = [];
+  for (const d of all) {
+    if (d.verdict === "settled") {
+      if (d.tasker?.toLowerCase() === lower) mine.push(d);
+      continue;
+    }
+
+    // Held: ask the registry who this wallet was sealed to.
+    const owner = await withRetry(() =>
+      publicClient.readContract({
+        address: registry,
+        abi: registryReads,
+        functionName: "taskerFor",
+        args: [BigInt(d.campaignId), d.wallet],
+      }),
+    ).catch(() => null);
+
+    if (owner && String(owner).toLowerCase() === lower) mine.push(d);
+    if (mine.length >= limit) break;
+  }
+
+  return mine.slice(0, limit);
+}
+
 export const escrowEvents = parseAbi([
   "event Settled(uint256 indexed campaignId, address indexed tasker, address indexed wallet, uint256 actionIndex, uint256 amount, uint256 fee, string reason)",
   "event Held(uint256 indexed campaignId, address indexed wallet, uint256 actionIndex, string reason)",

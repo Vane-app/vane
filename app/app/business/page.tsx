@@ -6,6 +6,7 @@ import { TabBar, AppBar } from "../../components/AppChrome";
 import { Mascot, type FalconState } from "../../components/Mascot";
 import { AccountPanel } from "../../components/Account";
 import { CampaignControls } from "../../components/CampaignControls";
+import { Decisions } from "../../components/Decisions";
 import { usd } from "../../lib/data";
 
 /**
@@ -23,95 +24,6 @@ const AGENT_BEATS: { state: FalconState; title: string; sub: string; tone: "chec
   { state: "thinking", title: "Checking a burst of signups", sub: "Several wallets, created within the same hour…", tone: "check" },
   { state: "refusing", title: "Held — not paid", sub: "Wallets funded from one source, silent since.", tone: "no" },
 ];
-
-interface OnChainDecision {
-  verdict: "settled" | "held";
-  campaignId: number;
-  wallet: string;
-  actionIndex: number;
-  amount?: string;
-  reason: string;
-  txHash: string;
-}
-
-/**
- * The falcon's real decisions, read off Arc.
- *
- * This is the screen that earns the trust. An advertiser's deepest fear is paying for
- * fraud, and the answer is not a reassurance — it is a list of refusals, each with the
- * reason the agent gave and the transaction that recorded it. Every row links to the
- * explorer, so nothing here has to be taken on our word.
- *
- * Falls back to the explainer only when the chain genuinely has nothing to show.
- */
-function AgentDecisions() {
-  const [rows, setRows] = useState<OnChainDecision[] | null>(null);
-  const [scanning, setScanning] = useState(false);
-  const [explorer, setExplorer] = useState("https://testnet.arcscan.app");
-
-  useEffect(() => {
-    let live = true;
-    const load = () =>
-      fetch("/api/decisions")
-        .then((r) => r.json())
-        .then((d) => {
-          if (!live) return;
-          setRows(Array.isArray(d.decisions) ? d.decisions : []);
-          setScanning(Boolean(d.scanning));
-          if (d.explorer) setExplorer(d.explorer);
-        })
-        .catch(() => live && setRows([]));
-
-    void load();
-    const t = setInterval(load, 15_000);
-    return () => {
-      live = false;
-      clearInterval(t);
-    };
-  }, []);
-
-  if (rows === null || (rows.length === 0 && scanning)) {
-    return (
-      <div className="group">
-        <div className="grow-row" style={{ display: "block" }}>
-          <b style={{ display: "block", marginBottom: 4 }}>Reading the chain…</b>
-          <span className="tiny">Every decision the falcon has made is public. Fetching them from Arc.</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (rows.length === 0) return <AgentExplainer />;
-
-  return (
-    <div className="group">
-      {rows.map((d) => (
-        <a
-          key={`${d.txHash}-${d.wallet}-${d.actionIndex}`}
-          href={`${explorer}/tx/${d.txHash}`}
-          target="_blank"
-          rel="noreferrer"
-          className="grow-row"
-        >
-          <span className={`dot ${d.verdict === "held" ? "dot-no" : "dot-ok"}`} aria-hidden="true">
-            {d.verdict === "held" ? "✕" : "✓"}
-          </span>
-          <div className="body">
-            <b>
-              {d.verdict === "settled"
-                ? `${usd(Number(d.amount ?? 0))} paid`
-                : "Refused — not paid"}
-            </b>
-            <span>{d.reason}</span>
-          </div>
-          <span className="tiny num" style={{ color: "var(--faint)" }}>
-            {d.wallet.slice(0, 6)}…
-          </span>
-        </a>
-      ))}
-    </div>
-  );
-}
 
 function AgentExplainer() {
   const [i, setI] = useState(0);
@@ -395,7 +307,7 @@ export default function BusinessDashboard() {
             <div className="sec-head">
               <span>What the falcon decided</span>
             </div>
-            <AgentDecisions />
+            <Decisions />
           </section>
         </div>
       </div>

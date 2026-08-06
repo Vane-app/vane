@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AppBar, TabBar } from "../../components/AppChrome";
 import { useMe } from "../../components/Me";
+import { Decisions } from "../../components/Decisions";
+import { AccountPanel } from "../../components/Account";
 import { usd } from "../../lib/data";
 
 /**
@@ -134,6 +136,10 @@ export default function Earnings() {
           seeded curve identical for every account — a shape of success nobody had. It
           comes back when there is history to plot. */}
 
+      {/* Earnings and Account used to be separate screens showing halves of the same
+          thing. One dashboard: the money, then the person it belongs to. */}
+      <AccountPanel />
+
       <div className="two-up">
         <section className="fade-up d3" style={{ marginBottom: 26 }}>
           <div className="sec-head">
@@ -190,42 +196,16 @@ export default function Earnings() {
 
         <section className="fade-up d4" style={{ marginBottom: 26 }}>
           <div className="sec-head">
-            <span>Payout ledger</span>
-            <Link href="/paid">All activity</Link>
+            <span>What the falcon decided</span>
           </div>
 
-          {/* One row per campaign that has actually paid. A per-payout ledger needs the
-              agent's decisions indexed off-chain; until then this shows what is true
-              rather than a seeded list of settlements that never happened. */}
-          <div className="group">
-            {streams.filter((p) => p.earned > 0).length === 0 ? (
-              <div className="grow-row" style={{ display: "block" }}>
-                <b style={{ display: "block", marginBottom: 4 }}>Nothing settled yet</b>
-                <span className="tiny">
-                  Every payout the falcon approves — and every one it refuses, with its reason — appears here.
-                </span>
-              </div>
-            ) : (
-              streams
-                .filter((p) => p.earned > 0)
-                .map((p) => (
-                  <div key={p.campaignId} className="grow-row">
-                    <span className="dot dot-ok" aria-hidden="true">
-                      ✓
-                    </span>
-                    <div className="body">
-                      <b>{p.business}</b>
-                      <span>
-                        {p.results} verified result{p.results === 1 ? "" : "s"}
-                      </span>
-                    </div>
-                    <b className="amt num" style={{ color: "var(--verified)" }}>
-                      +{usd(p.earned)}
-                    </b>
-                  </div>
-                ))
-            )}
-          </div>
+          {/* Per decision, from Arc — not a per-campaign roll-up. A held result is the
+              row that matters most here: the tasker lost that payout and is owed the
+              reason, in the agent's own words, with the transaction behind it. */}
+          <Decisions
+            mine
+            emptyNote="Once a referral of yours converts, the falcon's decision — paid or held, with its reason — shows up here."
+          />
         </section>
       </div>
 

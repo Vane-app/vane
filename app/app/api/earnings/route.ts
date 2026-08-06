@@ -33,7 +33,14 @@ export async function GET() {
         results: t.results,
         earned: t.earned,
         takenAt: t.takenAt,
+        // A promoter needs to know when a campaign they are working has been paused
+        // or has run out of budget — otherwise they keep sharing a link that cannot
+        // pay, which is the fastest way to lose someone from a marketplace.
+        status: c?.status ?? "active",
         live: (c?.status ?? "active") === "active",
+        budgetLeft: c ? Math.max(0, c.budget - c.spent) : 0,
+        resultsLeft: c && c.rewardPerAction > 0 ? Math.floor(Math.max(0, c.budget - c.spent) / c.rewardPerAction) : 0,
+        daysLeft: c ? Math.max(0, Math.ceil((c.endsAt - Math.floor(Date.now() / 1000)) / 86_400)) : 0,
       };
     }),
   );
