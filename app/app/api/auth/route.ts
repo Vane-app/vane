@@ -1,15 +1,20 @@
 import { NextResponse } from "next/server";
-import { createUser, updateUser, findUserByEmail, type User } from "../../../lib/store";
-import { setSession, clearSession } from "../../../lib/session";
+import { createUser, updateUser, findUserByEmail, getUser, type User } from "../../../lib/store";
+import { setSession, clearSession, currentUserId } from "../../../lib/session";
+import { issueCode, verifyCode } from "../../../lib/auth-code";
 
 /**
- * POST /api/auth — sign up or log in with an email.
+ * Sign in and sign up, in two steps.
  *
- * No password: the wallet is the identity. On first sight of an email we create
- * the user and a Circle wallet (or a demo wallet when Circle isn't configured),
- * then set a signed session cookie. Returning users just get a fresh session.
+ * This route used to take an email and hand back a session. Any email — including
+ * someone else's — logged you in as them. That is an impersonation form, not a login,
+ * and on a product holding people's earnings it is the most serious thing here.
  *
- * Body: { email, role?, name?, avatar? }
+ *   POST { email }                    → sends a code, creates nothing
+ *   POST { email, code, role?, ... }  → verifies, then creates the account and session
+ *
+ * The account is only created once the code checks out, so nobody can fill the users
+ * table with addresses they do not control.
  */
 export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}));
@@ -18,10 +23,38 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "A valid email is required." }, { status: 400 });
   }
 
+  // --- step one: ask for a code -------------------------------------------
+  if (!body.code) {
+    const existing = await findUserByEmail(email);
+    const { devCode, expiresInSeconds } = await issueCode(email);
+    return NextResponse.json({
+      sent: true,
+      // Lets the UI say "welcome back" rather than "let's get you started". Only ever
+      // returned to whoever is about to prove they hold the address.
+      returning: Boolean(existing),
+      expiresInSeconds,
+      devCode,
+    });
+  }
+
+  // --- step two: prove it --------------------------------------------------
+  const result = await verifyCode(email, String(body.code));
+  if (!result.ok) {
+    const message =
+      result.reason === "expired"
+        ? "That code has expired — ask for a new one."
+        : result.reason === "too-many-attempts"
+          ? "Too many attempts. Ask for a new code."
+          : result.reason === "not-requested"
+            ? "Ask for a code first."
+            : "That code isn't right.";
+    return NextResponse.json({ error: message, reason: result.reason }, { status: 401 });
+  }
+
   const existing = await findUserByEmail(email);
   const isNew = !existing;
 
-  // Only an explicit role means "I am joining this side". Logging in sends no role at
+  // Only an explicit role means "I am joining this side". Signing in sends no role at
   // all, and must never change what someone already is.
   const wanted: "tasker" | "business" | null =
     body.role === "business" ? "business" : body.role === "tasker" ? "tasker" : null;
@@ -30,16 +63,14 @@ export async function POST(req: Request) {
 
   // One account, two sides. Coming back through the other front door promotes the
   // account to "both" rather than overwriting — a person who promotes campaigns and
-  // also advertises their own is one user, not two. `createUser` returns the existing
-  // record untouched, so the role has to be reconciled here.
+  // also advertises their own is one user, not two.
   if (existing && wanted && existing.role !== wanted && existing.role !== "both") {
     await updateUser(existing.id, { role: "both" });
   }
 
   // Deliberately no wallet here. Signing up must not mint a wallet Vane controls —
   // that would make us a custodian of the user's earnings before they have agreed to
-  // anything. The wallet is created in onboarding, by the user, against a keyshare we
-  // never see. See lib/circle-user.ts.
+  // anything. The wallet is created in onboarding, by the user. See lib/circle-user.ts.
   if (body.name || body.avatar) {
     await updateUser(user.id, {
       ...(body.name ? { name: String(body.name) } : {}),
@@ -50,6 +81,31 @@ export async function POST(req: Request) {
   await setSession(user.id);
   const fresh = (await findUserByEmail(email)) ?? user;
   return NextResponse.json({ user: publicUser(fresh), isNew });
+}
+
+/**
+ * PATCH — update the signed-in user's own profile.
+ *
+ * Onboarding saves a name and photo after the session exists. It used to do that by
+ * re-POSTing here, which now demands a code, so it needs its own door. Reads the
+ * session rather than an email, so it can only ever edit you.
+ */
+export async function PATCH(req: Request) {
+  const id = await currentUserId();
+  if (!id) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+
+  const body = await req.json().catch(() => ({}));
+  const patch: Partial<User> = {};
+  if (body.name !== undefined) patch.name = String(body.name);
+  if (body.avatar !== undefined) patch.avatar = String(body.avatar);
+
+  if (body.role === "business" || body.role === "tasker") {
+    const me = await getUser(id);
+    if (me && me.role !== body.role && me.role !== "both") patch.role = "both";
+  }
+
+  const updated = await updateUser(id, patch);
+  return NextResponse.json({ user: updated ? publicUser(updated) : null });
 }
 
 export async function DELETE() {

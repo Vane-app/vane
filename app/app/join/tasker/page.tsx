@@ -10,6 +10,7 @@ import { OnboardFrame } from "../../../components/Onboard";
 import { WalletStep } from "../../../components/Wallet";
 import { Back } from "../../../components/Back";
 import { useMe } from "../../../components/Me";
+import { EmailStep } from "../../../components/EmailStep";
 import { INDUSTRIES, type Industry } from "../../../lib/data";
 
 /**
@@ -77,28 +78,13 @@ export default function TaskerOnboarding() {
   async function next() {
     const n = ORDER[idx + 1];
 
-    if (step === "email" && !signedIn) {
-      try {
-        const res = await fetch("/api/auth", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, role: "tasker" }),
-        });
-        if (!res.ok) throw new Error((await res.json()).error ?? "Could not create your account.");
-        setSignedIn(true);
-      } catch (err) {
-        setAuthError((err as Error).message);
-        return; // stay put rather than walk them into a step that cannot work
-      }
-    }
-
     if (n === "done") {
       save({ onboarded: true, email, name, avatar, strengths, channels, socials });
-      // Keep the account's name and avatar in step with what they just entered.
+      // PATCH, not POST: the session already exists and POST now demands a code.
       void fetch("/api/auth", {
-        method: "POST",
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, role: "tasker", name, avatar }),
+        body: JSON.stringify({ name, avatar }),
       });
     }
     setStep(n);
@@ -107,7 +93,10 @@ export default function TaskerOnboarding() {
   /** Step backwards, or leave the flow entirely from the first step. */
   function prev() {
     if (idx <= 0) {
-      router.push("/start");
+      // Someone already signed in reached this by switching sides from inside the
+      // app, so "back" means back to the app — not out to the signup chooser they
+      // never came through.
+      router.push(me ? "/business" : "/start");
       return;
     }
     setStep(ORDER[idx - 1]);
@@ -120,51 +109,42 @@ export default function TaskerOnboarding() {
   return (
     <OnboardFrame side="earning" hero={step !== "done"} wide={step === "done"}>
       <header className="ob-top">
-        {/* Also the exit: onboarding must never be a room with no door. */}
-        <Link href="/" className="row" style={{ gap: 9 }}>
+        {/* Three explicit slots: leave, identity, progress. They were previously three
+            siblings in one flex row with a centring override, which jammed the back
+            control against the wordmark and squashed the progress bar beside it. */}
+        <div className="ob-top-left">
+          {step !== "done" && <Back onClick={prev} label="Back" />}
+        </div>
+
+        <Link href="/" className="ob-top-brand" aria-label="Vane home">
           <Mark size={20} color="var(--amber)" />
-          <b style={{ fontSize: 19, letterSpacing: "-.04em" }}>vane</b>
+          <b>vane</b>
         </Link>
-        {step !== "done" && <Back onClick={prev} label={idx === 0 ? "Choose a side" : "Back"} />}
-        {step !== "done" && (
-          <div className="ob-progress" aria-hidden="true">
-            {ORDER.slice(0, -1).map((s, i) => (
-              <i key={s} className={i <= idx ? "on" : ""} />
-            ))}
-          </div>
-        )}
+
+        <div className="ob-top-right">
+          {step !== "done" && (
+            <div className="ob-progress" aria-hidden="true">
+              {ORDER.slice(0, -1).map((s, i) => (
+                <i key={s} className={i <= idx ? "on" : ""} />
+              ))}
+            </div>
+          )}
+        </div>
       </header>
 
       {step === "email" && (
         <Panel
           title="Let's get you earning"
-          sub="Just your email to start. Your payout account is created for you — no wallet, no card, no seed phrase."
+          sub="Your email, then a 6-digit code to prove it's yours. No password to remember."
         >
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (emailValid) void next();
+          <EmailStep
+            role="tasker"
+            submitLabel="Email me a code"
+            onVerified={() => {
+              setSignedIn(true);
+              setStep("profile");
             }}
-          >
-            <div className="card" style={{ marginBottom: 14 }}>
-              <label htmlFor="email" className="eyebrow">
-                Email
-              </label>
-              <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                autoFocus
-                className="ob-input"
-              />
-            </div>
-            <button type="submit" className="btn btn-amber" disabled={!emailValid} style={{ opacity: emailValid ? 1 : 0.4 }}>
-              Continue
-            </button>
-            {authError && <p className="wallet-error" style={{ marginTop: 10 }}>{authError}</p>}
-          </form>
+          />
         </Panel>
       )}
 

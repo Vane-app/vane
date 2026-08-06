@@ -126,3 +126,20 @@ export const decisions = pgTable("decisions", {
   txHash: text("tx_hash").default(""),
   decidedAt: timestamp("decided_at").notNull().defaultNow(),
 });
+
+/**
+ * One-time login codes.
+ *
+ * Sign-in used to be "type an email, you're in" — any email, including someone
+ * else's. A code proves the person asking actually controls the address.
+ *
+ * Rows are short-lived and single-use: consumed on success, and expired rows are
+ * meaningless. `attempts` caps guessing, since a 6-digit code is only 10^6 wide.
+ */
+export const loginCodes = pgTable("login_codes", {
+  email: text("email").primaryKey(),
+  codeHash: text("code_hash").notNull(),
+  expiresAt: bigint("expires_at", { mode: "number" }).notNull(),
+  attempts: integer("attempts").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});

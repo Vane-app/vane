@@ -2350,19 +2350,35 @@ h3 {
 
 /* the falcon is the brand mark here, so the small wordmark in the step header is
    redundant — hide it and centre the progress. */
-.obone .ob-top {
-  justify-content: center;
-}
-
-.obone .ob-top > span:first-child {
-  display: none;
-}
-
+/* Three equal columns, so the wordmark sits dead centre no matter how wide the
+   back label is, and the progress bar keeps its own space on the right. A flex row
+   with space-between could not do this: the centre item drifts with its siblings. */
 .ob-top {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: space-between;
+  gap: 12px;
   padding: 22px 0 40px;
+}
+
+.ob-top-left {
+  justify-self: start;
+}
+
+.ob-top-right {
+  justify-self: end;
+}
+
+.ob-top-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  justify-self: center;
+}
+
+.ob-top-brand b {
+  font-size: 19px;
+  letter-spacing: -0.04em;
 }
 
 .ob-progress {
@@ -4033,4 +4049,236 @@ button.backlink {
 /* In onboarding the back sits beside the wordmark in the header row. */
 .ob-top .backlink {
   margin-bottom: 0;
+}
+
+/* ---------------------------------------------------------------------------
+   The "you" panel.
+
+   Earnings and Account were two screens sharing a subject — a balance on one, the
+   wallet it lands in on the other. This is the half that belongs to the person,
+   sitting on whichever dashboard they are already looking at.
+   --------------------------------------------------------------------------- */
+.acctpanel {
+  margin: 8px 0 26px;
+  padding: 18px;
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line);
+  display: grid;
+  gap: 16px;
+}
+
+.acctpanel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.acctpanel-out {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--muted);
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 140ms ease, background 140ms ease;
+}
+
+.acctpanel-out:hover:not(:disabled) {
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.acctpanel-wallet,
+.acctpanel-rep {
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.acctpanel-wallet .wallet-addr {
+  display: block;
+  margin-top: 7px;
+}
+
+@media (min-width: 900px) {
+  .acctpanel {
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
+  .acctpanel-head {
+    grid-column: 1 / -1;
+  }
+  .acctpanel-wallet,
+  .acctpanel-rep {
+    min-width: 0;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   The rail's account block.
+
+   Sits above the agent status, pinned to the bottom of the sidebar. This is where
+   people look for who they are signed in as and how to leave — previously neither
+   existed anywhere in the chrome, so signing out meant hunting inside a dashboard.
+   --------------------------------------------------------------------------- */
+.rail-user {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 10px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.035);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.rail-user-id {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+}
+
+.rail-user-id b {
+  font-size: 13.5px;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rail-user-id i {
+  font-style: normal;
+  font-size: 11px;
+  color: var(--faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rail-signout {
+  flex-shrink: 0;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--faint);
+  background: none;
+  border: 0;
+  padding: 4px 2px;
+  cursor: pointer;
+  transition: color 140ms ease;
+}
+
+.rail-signout:hover:not(:disabled) {
+  color: var(--held);
+}
+
+/* The agent status is a footnote, not a headline — it sat flush against the user
+   block and read as part of it. */
+.rail-foot {
+  margin-top: 12px;
+}
+
+/* ---------------------------------------------------------------------------
+   My campaigns — the promoter's working screen.
+
+   Their link, and what it has earned. This did not exist: a referral link lived
+   only on the campaign page it was claimed from, so navigating away lost it.
+   --------------------------------------------------------------------------- */
+.mycamps {
+  display: grid;
+  gap: 14px;
+}
+
+@media (min-width: 900px) {
+  .mycamps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.mycamp {
+  padding: 16px;
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line);
+  display: grid;
+  gap: 14px;
+}
+
+.mycamp-head {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.mycamp-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 10px 10px 13px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.045);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.mycamp-link > span {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mycamp-copy {
+  flex-shrink: 0;
+  padding: 6px 13px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  color: var(--night);
+  background: var(--amber);
+  border: 0;
+  transition: background 140ms ease;
+}
+
+.mycamp-copy:hover {
+  background: var(--amber-deep);
+}
+
+.mycamp-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.mycamp-stats b {
+  display: block;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.mycamp-stats span {
+  font-size: 11.5px;
+  color: var(--faint);
+}
+
+/* The 6-digit code. Wide tracking so it reads as digits to be checked, not prose. */
+.code-input {
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 0.34em;
+  text-align: center;
+}
+
+.code-input::placeholder {
+  letter-spacing: 0.34em;
+  color: var(--faint);
 }

@@ -10,6 +10,7 @@ import { OnboardFrame } from "../../../components/Onboard";
 import { WalletStep } from "../../../components/Wallet";
 import { Back } from "../../../components/Back";
 import { useMe } from "../../../components/Me";
+import { EmailStep } from "../../../components/EmailStep";
 import { INDUSTRIES, usd, type Industry } from "../../../lib/data";
 
 /**
@@ -22,8 +23,8 @@ import { INDUSTRIES, usd, type Industry } from "../../../lib/data";
  * tier. A business puts money in; a tasker only takes it out.
  */
 
-type Step = "name" | "logo" | "fund" | "bond" | "done";
-const ORDER: Step[] = ["name", "logo", "fund", "bond", "done"];
+type Step = "name" | "verify" | "logo" | "fund" | "bond" | "done";
+const ORDER: Step[] = ["name", "verify", "logo", "fund", "bond", "done"];
 
 const FUND_OPTIONS = [250, 500, 1000, 2500];
 const BOND_OPTIONS = [0, 200, 500];
@@ -67,19 +68,11 @@ export default function BusinessOnboarding() {
   async function next() {
     const n = ORDER[idx + 1];
 
-    if (step === "name" && !signedIn) {
-      try {
-        const res = await fetch("/api/auth", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, role: "business", name, avatar: logo }),
-        });
-        if (!res.ok) throw new Error((await res.json()).error ?? "Could not create your account.");
-        setSignedIn(true);
-      } catch (err) {
-        setAuthError((err as Error).message);
-        return;
-      }
+    // Already signed in (adding a business to an existing account)? Skip proving the
+    // address again — they proved it when they joined.
+    if (n === "verify" && signedIn) {
+      setStep("logo");
+      return;
     }
 
     if (n === "done") {
@@ -101,7 +94,10 @@ export default function BusinessOnboarding() {
   /** Step backwards, or leave the flow entirely from the first step. */
   function prev() {
     if (idx <= 0) {
-      router.push("/start");
+      // Someone already signed in reached this by switching sides from inside the
+      // app, so "back" means back to the app — not out to the signup chooser they
+      // never came through.
+      router.push(me ? "/tasks" : "/start");
       return;
     }
     setStep(ORDER[idx - 1]);
@@ -110,19 +106,27 @@ export default function BusinessOnboarding() {
   return (
     <OnboardFrame side="advertising" hero={step !== "done"} wide={step === "done"}>
       <header className="ob-top">
-        {/* Also the exit: onboarding must never be a room with no door. */}
-        <Link href="/" className="row" style={{ gap: 9 }}>
+        {/* Three explicit slots: leave, identity, progress. They were previously three
+            siblings in one flex row with a centring override, which jammed the back
+            control against the wordmark and squashed the progress bar beside it. */}
+        <div className="ob-top-left">
+          {step !== "done" && <Back onClick={prev} label="Back" />}
+        </div>
+
+        <Link href="/" className="ob-top-brand" aria-label="Vane home">
           <Mark size={20} color="var(--amber)" />
-          <b style={{ fontSize: 19, letterSpacing: "-.04em" }}>vane</b>
+          <b>vane</b>
         </Link>
-        {step !== "done" && <Back onClick={prev} label={idx === 0 ? "Choose a side" : "Back"} />}
-        {step !== "done" && (
-          <div className="ob-progress" aria-hidden="true">
-            {ORDER.slice(0, -1).map((s, i) => (
-              <i key={s} className={i <= idx ? "on" : ""} />
-            ))}
-          </div>
-        )}
+
+        <div className="ob-top-right">
+          {step !== "done" && (
+            <div className="ob-progress" aria-hidden="true">
+              {ORDER.slice(0, -1).map((s, i) => (
+                <i key={s} className={i <= idx ? "on" : ""} />
+              ))}
+            </div>
+          )}
+        </div>
       </header>
 
       {step === "name" && (
@@ -130,7 +134,7 @@ export default function BusinessOnboarding() {
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              if (name.trim() && emailValid) void next();
+              if (name.trim()) void next();
             }}
           >
             <div className="card" style={{ marginBottom: 16 }}>
@@ -140,26 +144,11 @@ export default function BusinessOnboarding() {
               <input id="bn" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Lumen" autoFocus className="ob-input" />
             </div>
 
-            {/* Already have an account? Then we know the email — don't ask twice. */}
-            {known ? (
+            {known && (
               <p className="tiny" style={{ marginBottom: 16 }}>
                 Adding a business to <b style={{ color: "var(--ink)" }}>{email}</b>. Your wallet and details
                 carry over.
               </p>
-            ) : (
-              <div className="card" style={{ marginBottom: 16 }}>
-                <label htmlFor="bemail" className="eyebrow">
-                  Work email
-                </label>
-                <input
-                  id="bemail"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@company.com"
-                  className="ob-input"
-                />
-              </div>
             )}
 
             <p className="eyebrow" style={{ marginBottom: 10 }}>
@@ -179,13 +168,27 @@ export default function BusinessOnboarding() {
             <button
               type="submit"
               className="btn btn-amber"
-              disabled={!name.trim() || !emailValid}
-              style={{ opacity: name.trim() && emailValid ? 1 : 0.4, marginTop: 20 }}
+              disabled={!name.trim()}
+              style={{ opacity: name.trim() ? 1 : 0.4, marginTop: 20 }}
             >
               Continue
             </button>
             {authError && <p className="wallet-error" style={{ marginTop: 10 }}>{authError}</p>}
           </form>
+        </Panel>
+      )}
+
+      {step === "verify" && (
+        <Panel title="Confirm it's you" sub="A 6-digit code, so nobody else can post campaigns in your name.">
+          <EmailStep
+            role="business"
+            profile={{ name, avatar: logo }}
+            submitLabel="Email me a code"
+            onVerified={() => {
+              setSignedIn(true);
+              setStep("logo");
+            }}
+          />
         </Panel>
       )}
 

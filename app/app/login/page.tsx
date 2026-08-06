@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Mark } from "../../components/Falcon";
 import { Back } from "../../components/Back";
+import { EmailStep } from "../../components/EmailStep";
 
 /**
  * Log in — for people who already have an account.
@@ -20,37 +20,6 @@ import { Back } from "../../components/Back";
  */
 export default function Login() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const valid = /.+@.+\..+/.test(email);
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/auth", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Could not sign you in.");
-
-      // No account existed, so one was just created — they still owe us onboarding.
-      // Send them to choose a side rather than into a half-empty dashboard.
-      if (data.isNew) {
-        router.push("/start");
-        return;
-      }
-      router.push(data.user?.role === "business" ? "/business" : "/tasks");
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
 
   return (
     <main className="startpage">
@@ -68,31 +37,17 @@ export default function Login() {
         </p>
       </div>
 
-      <form onSubmit={submit} className="fade-up d1" style={{ width: "100%", maxWidth: 380 }}>
-        <div className="card" style={{ marginBottom: 14 }}>
-          <label htmlFor="lemail" className="eyebrow">
-            Email
-          </label>
-          <input
-            id="lemail"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
-            autoFocus
-            className="ob-input"
-          />
-        </div>
-        <button
-          type="submit"
-          className="btn btn-amber"
-          disabled={!valid || busy}
-          style={{ opacity: valid && !busy ? 1 : 0.4 }}
-        >
-          {busy ? "Signing you in…" : "Continue"}
-        </button>
-        {error && <p className="wallet-error" style={{ marginTop: 10 }}>{error}</p>}
-      </form>
+      <div className="fade-up d1" style={{ width: "100%", maxWidth: 380 }}>
+        <EmailStep
+          submitLabel="Email me a code"
+          onVerified={(user, isNew) => {
+            // A brand-new address arriving at the login door still owes us onboarding;
+            // sending them to a half-empty dashboard would be the wrong welcome.
+            if (isNew) router.push("/start");
+            else router.push(user.role === "business" ? "/business" : "/earnings");
+          }}
+        />
+      </div>
 
       <p className="tiny fade-up d2" style={{ textAlign: "center", marginTop: 26 }}>
         New here? <Link href="/start" style={{ color: "var(--amber)", fontWeight: 700 }}>Get started</Link>
