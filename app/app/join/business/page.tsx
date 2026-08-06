@@ -17,17 +17,27 @@ import { INDUSTRIES, usd, type Industry } from "../../../lib/data";
  * Business onboarding.
  *
  * Mirrors the tasker flow but diverges where the business is different: it asks
- * whether you're a web or onchain business (which sets how results are verified
- * and adapts the falcon's language), takes a logo, and — the real difference —
- * has you *fund* an escrow wallet and optionally stake a bond for the Bonded
- * tier. A business puts money in; a tasker only takes it out.
+ * whether results happen onchain (which sets how they are verified and adapts the
+ * falcon's language) and takes a logo. Money is not discussed here — a business
+ * decides its budget and rate per campaign, which is the only moment USDC moves.
  */
 
-type Step = "name" | "verify" | "logo" | "fund" | "bond" | "done";
-const ORDER: Step[] = ["name", "verify", "logo", "fund", "bond", "done"];
-
-const FUND_OPTIONS = [250, 500, 1000, 2500];
-const BOND_OPTIONS = [0, 200, 500];
+/**
+ * Onboarding asks who you are and gets you a wallet. It does not take money.
+ *
+ * There used to be "fund your escrow" and "stake a bond" steps offering fixed amounts
+ * — $250, $500, $1,000, $2,500 — and telling the business their budget was "locked in
+ * a contract" that "neither you nor Vane can move". None of that was true. Both values
+ * were written to local state and read by nothing; no USDC moved and no contract was
+ * touched.
+ *
+ * It could not have worked either way: VaneEscrow funds per campaign, because
+ * `createCampaign` is what pulls the budget from the business. There is no account
+ * balance to top up in advance, and offering a menu of amounts was Vane deciding
+ * something that belongs to the business.
+ */
+type Step = "name" | "verify" | "logo" | "done";
+const ORDER: Step[] = ["name", "verify", "logo", "done"];
 
 export default function BusinessOnboarding() {
   const router = useRouter();
@@ -38,8 +48,6 @@ export default function BusinessOnboarding() {
   const [kind, setKind] = useState<"web2" | "web3">("web3");
   const [logo, setLogo] = useState("");
   const [industry, setIndustry] = useState<Industry>("Payments");
-  const [funded, setFunded] = useState(500);
-  const [bond, setBond] = useState(0);
   const [walletReady, setWalletReady] = useState(false);
   const [email, setEmail] = useState("");
   const [signedIn, setSignedIn] = useState(false);
@@ -83,8 +91,6 @@ export default function BusinessOnboarding() {
           logo,
           industry,
           kind,
-          funded: funded * 1_000_000,
-          bond: bond * 1_000_000,
         },
       });
     }
@@ -219,55 +225,6 @@ export default function BusinessOnboarding() {
         </Panel>
       )}
 
-      {step === "fund" && (
-        <Panel
-          title="Fund your escrow"
-          sub={`Your budget is locked in a contract and only released for verified ${resultWord}. Whatever isn't used comes back to you.`}
-        >
-          <div className="ob-fund">
-            {FUND_OPTIONS.map((v) => (
-              <button key={v} className={`ob-fundopt ${funded === v ? "on" : ""}`} onClick={() => setFunded(v)}>
-                <b className="num">{usd(v * 1_000_000, { cents: false })}</b>
-                <span>≈ {Math.floor(v / 2)} results</span>
-              </button>
-            ))}
-          </div>
-          <p className="tiny" style={{ marginTop: 14 }}>
-            On testnet this is funded from the Circle faucet. Neither you nor Vane can move it once locked —
-            only verified results release it.
-          </p>
-          <button className="btn btn-amber" onClick={next} style={{ marginTop: 22 }}>
-            Add {usd(funded * 1_000_000, { cents: false })}
-          </button>
-        </Panel>
-      )}
-
-      {step === "bond" && (
-        <Panel
-          title="Become a Bonded business"
-          sub="Stake a refundable deposit to earn the Bonded badge. It signals you stand behind your campaigns — and promoters trust bonded businesses first."
-        >
-          <div className="ob-bond">
-            {BOND_OPTIONS.map((v) => (
-              <button key={v} className={`ob-bondopt ${bond === v ? "on" : ""}`} onClick={() => setBond(v)}>
-                <div>
-                  <b>{v === 0 ? "Not now" : `Stake ${usd(v * 1_000_000, { cents: false })}`}</b>
-                  <span>{v === 0 ? "You can bond later" : v >= 500 ? "Top ranking + fastest approval" : "Bonded badge + higher ranking"}</span>
-                </div>
-                {v > 0 && <span className="badge badge-bonded">Bonded</span>}
-              </button>
-            ))}
-          </div>
-          <p className="tiny" style={{ marginTop: 14 }}>
-            The bond is returned in full when your campaigns close on a clean record. It only covers disputes
-            if a result is wrongly claimed against you.
-          </p>
-          <button className="btn btn-amber" onClick={next} style={{ marginTop: 22 }}>
-            {bond > 0 ? `Stake ${usd(bond * 1_000_000, { cents: false })} & finish` : "Finish"}
-          </button>
-        </Panel>
-      )}
-
       {step === "done" && (
         <div className="ob-done">
           <div className="ob-done-portrait">
@@ -281,13 +238,10 @@ export default function BusinessOnboarding() {
           </div>
 
           <div className="ob-done-body">
-            <div className="row" style={{ gap: 8 }}>
-              <h1 style={{ fontSize: 30, lineHeight: 1.08 }}>{name || "You're"} is set up</h1>
-              {bond > 0 && <span className="badge badge-bonded">Bonded</span>}
-            </div>
+            <h1 style={{ fontSize: 30, lineHeight: 1.08 }}>{name || "You're"} is set up</h1>
             <p className="sub" style={{ fontSize: 15, marginTop: 10 }}>
-              Next, your funding wallet. You&rsquo;ll lock {usd(funded * 1_000_000, { cents: false })} into escrow
-              when you post — and the falcon starts verifying {resultWord} the moment they happen.
+              Next, your wallet. You decide the budget and the rate when you post a campaign — that is the
+              moment USDC locks into escrow, and the falcon starts verifying {resultWord}.
             </p>
 
             {/* The business's funds are the business's. It signs its own escrow funding.

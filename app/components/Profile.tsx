@@ -30,8 +30,6 @@ export interface Profile {
     logo: string; // data URL
     industry: Industry;
     kind: "web2" | "web3";
-    funded: number; // 6dp USDC added to the escrow wallet
-    bond: number; // 6dp staked; > 0 earns the Bonded badge
   };
 }
 
