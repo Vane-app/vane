@@ -29,6 +29,10 @@ export const users = pgTable("users", {
   walletId: text("wallet_id").default(""),
   walletAddress: text("wallet_address").default(""),
   reputation: integer("reputation").notNull().default(80),
+  /** The domain this business claims, and when it last proved control of it.
+   *  Proof is control of the domain itself — see lib/domain.ts. */
+  domain: text("domain").default(""),
+  domainVerifiedAt: bigint("domain_verified_at", { mode: "number" }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -72,6 +76,8 @@ export const campaigns = pgTable("campaigns", {
   colour: text("colour").notNull().default("#3e6b8f"),
   /** The business's own logo. Falls back to the coloured initial when absent. */
   logoUrl: text("logo_url").default(""),
+  /** Snapshot of the owner's proved domain, so a card can show it without a join. */
+  verifiedDomain: text("verified_domain").default(""),
   bonded: boolean("bonded").notNull().default(false),
   web3: boolean("web3").notNull().default(false),
   /** The paid event: signup | post | trade … */

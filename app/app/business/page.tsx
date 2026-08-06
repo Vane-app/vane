@@ -8,6 +8,7 @@ import { AccountPanel } from "../../components/Account";
 import { CampaignControls } from "../../components/CampaignControls";
 import { Decisions } from "../../components/Decisions";
 import { Logo } from "../../components/Logo";
+import { DomainVerify } from "../../components/DomainVerify";
 import { usd } from "../../lib/data";
 
 /**
@@ -299,6 +300,16 @@ export default function BusinessDashboard() {
 
           {/* The refusals are the product. A business's deepest fear is paying for
               fraud, and the answer is a list it can verify on the explorer itself. */}
+          {/* Proving the brand. A promoter deciding whether to work on this needs to
+              know it is really who it says it is — the escrow protects their payout,
+              not their audience's trust. */}
+          <section className="fade-up d3">
+            <div className="sec-head">
+              <span>Your brand</span>
+            </div>
+            <DomainVerify compact />
+          </section>
+
           <section className="fade-up d4">
             <div className="sec-head">
               <span>What the falcon decided</span>

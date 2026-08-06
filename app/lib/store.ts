@@ -90,6 +90,7 @@ function toCampaign(r: CampaignRow): Campaign {
     initial: r.initial,
     colour: r.colour,
     logoUrl: r.logoUrl || undefined,
+    verifiedDomain: r.verifiedDomain || undefined,
     bonded: r.bonded,
     rewardPerAction: r.rewardPerAction,
     budget: r.budget,
@@ -293,6 +294,7 @@ export async function createCampaign(input: {
   bonded: boolean;
   ownerId?: string;
   logoUrl?: string;
+  verifiedDomain?: string;
 }): Promise<Campaign> {
   const endsAt = now() + input.durationDays * DAY;
   const kind = input.taskType === "referral" ? "signup" : input.taskType === "content" ? "post" : "signup";
@@ -308,6 +310,7 @@ export async function createCampaign(input: {
       initial: input.initial,
       colour: input.colour,
       logoUrl: input.logoUrl,
+      verifiedDomain: input.verifiedDomain,
       bonded: input.bonded,
       rewardPerAction: input.rewardPerAction,
       budget: input.budget,
@@ -336,6 +339,7 @@ export async function createCampaign(input: {
       initial: input.initial,
       colour: input.colour,
       logoUrl: input.logoUrl ?? "",
+      verifiedDomain: input.verifiedDomain ?? "",
       bonded: input.bonded,
       web3: input.kind === "web3",
       kind,

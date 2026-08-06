@@ -4774,3 +4774,59 @@ body {
   color: var(--held);
   background: var(--held-soft);
 }
+
+/* Domain verification — proving a business is who it says it is. */
+.domver {
+  padding: 16px;
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.domver-compact .card {
+  padding: 11px 13px;
+}
+
+.domver-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.domver-tabs button {
+  flex: 1;
+  padding: 8px 10px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: inset 0 0 0 1px var(--line);
+  border: 0;
+}
+
+.domver-tabs button.on {
+  color: var(--night);
+  background: var(--amber);
+  box-shadow: none;
+}
+
+.domver-how code.wallet-addr {
+  display: block;
+  margin-top: 7px;
+}
+
+/* The badge itself, wherever a business is listed. */
+.verified-domain {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--verified);
+  background: var(--verified-soft);
+  padding: 3px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}

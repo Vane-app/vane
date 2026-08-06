@@ -156,8 +156,12 @@ export default function CampaignPage() {
                   {c.bonded && <span className="badge badge-bonded">Bonded</span>}
                 </div>
                 <span className="tiny">
-                  {d.category} · {d.kind === "web3" ? "Onchain business" : "Web business"} · with Vane since{" "}
-                  {d.businessSince}
+                  {c.verifiedDomain ? (
+                    <span className="verified-domain">✓ {c.verifiedDomain}</span>
+                  ) : (
+                    "Domain not verified"
+                  )}{" "}
+                  · {d.category}
                 </span>
               </div>
             </div>

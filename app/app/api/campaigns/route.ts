@@ -4,6 +4,19 @@ import { currentUserId } from "../../../lib/session";
 import { startSession, createContractChallenge, userWalletsConfigured } from "../../../lib/circle-user";
 import { nextEscrowCampaignId } from "../../../lib/chain";
 import { updateCampaign } from "../../../lib/store";
+import { eq } from "drizzle-orm";
+import { db, schema } from "../../../lib/db/client";
+
+/** The domain this account has proved it controls, if any. */
+async function provedDomain(userId: string): Promise<string> {
+  if (!db) return "";
+  const [row] = await db
+    .select({ domain: schema.users.domain, verifiedAt: schema.users.domainVerifiedAt })
+    .from(schema.users)
+    .where(eq(schema.users.id, userId))
+    .limit(1);
+  return row?.verifiedAt ? (row.domain ?? "") : "";
+}
 import type { Industry, TaskType } from "../../../lib/data";
 
 const USDC = "0x3600000000000000000000000000000000000000";
@@ -57,6 +70,9 @@ export async function POST(req: Request) {
     // The business uploaded a logo at signup and it was never used anywhere. A
     // marketplace of coloured letters looks like a placeholder, not a marketplace.
     logoUrl: String(b.logoUrl ?? u.avatar ?? ""),
+    // Snapshot the proved domain so a card can show it without joining users on
+    // every marketplace query. Proving later backfills existing campaigns.
+    verifiedDomain: await provedDomain(id),
   });
 
   const escrow = process.env.VANE_ESCROW_ADDRESS;

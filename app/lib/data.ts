@@ -40,6 +40,10 @@ export interface Campaign {
   /** The business's uploaded logo. The initial and colour are the fallback, not the
    *  design — a marketplace of coloured letters looks like a placeholder. */
   logoUrl?: string;
+  /** The domain this business proved it controls. Absent means unproven, which is
+   *  shown rather than hidden — impersonation should be visible, not silently
+   *  possible. */
+  verifiedDomain?: string;
   bonded: boolean;
   /** Per verified result, 6dp USDC base units. */
   rewardPerAction: number;
@@ -117,6 +121,10 @@ export interface Performance {
   /** The business's uploaded logo. The initial and colour are the fallback, not the
    *  design — a marketplace of coloured letters looks like a placeholder. */
   logoUrl?: string;
+  /** The domain this business proved it controls. Absent means unproven, which is
+   *  shown rather than hidden — impersonation should be visible, not silently
+   *  possible. */
+  verifiedDomain?: string;
   clicks: number;
   results: number;
   /** 6dp USDC */
@@ -155,6 +163,10 @@ export interface Stream {
   /** The business's uploaded logo. The initial and colour are the fallback, not the
    *  design — a marketplace of coloured letters looks like a placeholder. */
   logoUrl?: string;
+  /** The domain this business proved it controls. Absent means unproven, which is
+   *  shown rather than hidden — impersonation should be visible, not silently
+   *  possible. */
+  verifiedDomain?: string;
   note: string;
   /** Total earned on this campaign, 6dp. */
   earned: number;
@@ -548,6 +560,10 @@ export interface BusinessProfile {
   /** The business's uploaded logo. The initial and colour are the fallback, not the
    *  design — a marketplace of coloured letters looks like a placeholder. */
   logoUrl?: string;
+  /** The domain this business proved it controls. Absent means unproven, which is
+   *  shown rather than hidden — impersonation should be visible, not silently
+   *  possible. */
+  verifiedDomain?: string;
   blurb: string;
   kind: "web2" | "web3";
   bonded: boolean;

@@ -327,8 +327,15 @@ function CampaignCard({ c, forYou }: { c: Campaign; forYou?: boolean }) {
         <Logo src={c.logoUrl} initial={c.initial} colour={c.colour} size={34} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <b style={{ fontSize: 14.5, letterSpacing: "-.01em" }}>{c.business}</b>
+          {/* Whether this business proved it controls the brand. A promoter is about
+              to put this in front of their own audience; the escrow protects their
+              payout, not their reputation. */}
           <span className="tiny" style={{ display: "block", marginTop: -1 }}>
-            {c.industry}
+            {c.verifiedDomain ? (
+              <span className="verified-domain">✓ {c.verifiedDomain}</span>
+            ) : (
+              c.industry
+            )}
           </span>
         </div>
         {forYou && <span className="badge badge-foryou">For you</span>}
