@@ -22,19 +22,18 @@ jobs:
           node-version: 22
           cache: npm
 
-      # `npm install`, not `npm ci`.
+      # Reproducible, now that the lockfile carries Linux binaries too.
       #
-      # Several dependencies here ship a native binary per platform — lightningcss,
-      # @tailwindcss/oxide, @next/swc, esbuild, sharp. npm records only the host
-      # platform's binary in the lockfile (npm/cli#4828), and this lockfile is
-      # generated on Windows, so `npm ci` on Linux installs nothing it can load and
-      # the app build dies on the first stylesheet.
+      # Several dependencies ship a native binary per platform — lightningcss,
+      # @tailwindcss/oxide, sharp, @unrs/resolver-binding. npm records only the host
+      # platform's in the lockfile (npm/cli#4828), and this one is generated on
+      # Windows, so `npm ci` on Linux installed nothing loadable and the app build died
+      # on the first stylesheet. Every push failed this way.
       #
-      # This trades strict lockfile reproducibility for building at all on a second
-      # platform. It is also what Vercel does, which is why deploys worked while CI
-      # failed on every push.
+      # Fixed by declaring the Linux binaries as optionalDependencies in app/package.json
+      # so they are pinned for both platforms, rather than by giving up on `npm ci`.
       - name: Install
-        run: npm install --no-audit --no-fund
+        run: npm ci
 
       - name: Compile contracts
         run: npm run compile -w @vane/contracts
