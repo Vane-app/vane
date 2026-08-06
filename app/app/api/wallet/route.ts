@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { currentUserId } from "../../../lib/session";
 import { getUser, updateUser } from "../../../lib/store";
 import { startSession, userWalletsConfigured } from "../../../lib/circle-user";
+import { topUpForGas } from "../../../lib/gas";
 
 /**
  * GET /api/wallet — begin a user-controlled wallet session.
@@ -37,6 +38,16 @@ export async function GET() {
     if (session.address && session.address !== user.walletAddress) {
       await updateUser(userId, { walletAddress: session.address });
     }
+
+    /**
+     * Cover the first transactions.
+     *
+     * Gas on Arc is USDC, and a wallet created a moment ago holds none — so without
+     * this, onboarding ends with "your wallet is ready" and then the first thing the
+     * user tries fails. Fire-and-forget: a failed top-up must not block the response,
+     * and the wallet still exists either way.
+     */
+    if (session.address) void topUpForGas(session.address);
 
     return NextResponse.json({
       configured: true,
