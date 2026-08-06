@@ -2,7 +2,7 @@
   "name": "vane",
   "version": "0.1.0",
   "private": true,
-  "description": "Vane — an autonomous marketing marketplace on Arc. Escrowed USDC campaigns, agent-verified results, instant settlement.",
+  "description": "Vane \u2014 an autonomous marketing marketplace on Arc. Escrowed USDC campaigns, agent-verified results, instant settlement.",
   "workspaces": [
     "agent",
     "contracts",
@@ -13,7 +13,8 @@
     "agent": "npm run start -w @vane/agent",
     "app": "npm run dev -w app",
     "deploy": "npm run deploy -w @vane/contracts",
-    "typecheck": "npm run typecheck -w @vane/agent"
+    "typecheck": "npm run typecheck -w @vane/agent",
+    "check": "node scripts/smoke.mjs"
   },
   "engines": {
     "node": ">=20"
