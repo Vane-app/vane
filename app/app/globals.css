@@ -3067,8 +3067,17 @@ h3 {
   .mk-post {
     padding: 13px 24px;
   }
+}
 
-  /* filter rail on the left, results fill the rest */
+/**
+ * The filter rail costs 252px and only earns it once there is width to spare.
+ *
+ * It used to appear at 900px, where the app rail has just taken 248px — leaving 336px
+ * of grid, enough for one cramped card. Below 1250px the filter button and its sheet
+ * do the same job for one tap and give the space back to the results, which is what
+ * someone came to the marketplace to look at.
+ */
+@media (min-width: 1250px) {
   .mk-body {
     grid-template-columns: 216px minmax(0, 1fr);
     gap: 36px;
@@ -3082,11 +3091,7 @@ h3 {
   }
 
   .mk-filterbtn {
-    display: none; /* the rail is always visible on desktop */
-  }
-
-  .mk-grid {
-    grid-template-columns: repeat(2, 1fr);
+    display: none;
   }
 }
 
@@ -4281,4 +4286,372 @@ button.backlink {
 .code-input::placeholder {
   letter-spacing: 0.34em;
   color: var(--faint);
+}
+
+/* ---------------------------------------------------------------------------
+   Business dashboard — an operating console.
+
+   Phone first, then a two-column split on a laptop. The campaign list is the work
+   and takes the wide column; promoters and the agent's decisions sit beside it on a
+   desktop and stack underneath on a phone.
+   --------------------------------------------------------------------------- */
+.biz-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 22px;
+}
+
+.biz-post {
+  max-width: 220px;
+  flex-shrink: 0;
+}
+
+.biz-kpis {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 26px;
+}
+
+.biz-kpi {
+  padding: 15px 16px;
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line);
+  min-width: 0;
+}
+
+.biz-kpi b {
+  display: block;
+  font-size: 23px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+}
+
+.biz-kpi > span {
+  display: block;
+  font-size: 12.5px;
+  color: var(--muted);
+  margin-top: 3px;
+}
+
+.biz-kpi i {
+  display: block;
+  font-style: normal;
+  font-size: 11.5px;
+  color: var(--faint);
+  margin-top: 6px;
+}
+
+.biz-grid {
+  display: grid;
+  gap: 26px;
+  align-items: start;
+}
+
+.biz-side {
+  display: grid;
+  gap: 26px;
+  align-content: start;
+}
+
+.biz-camps {
+  display: grid;
+  gap: 14px;
+}
+
+.biz-camp {
+  padding: 16px;
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line);
+  display: grid;
+  gap: 12px;
+}
+
+/* Paused or closed campaigns recede without disappearing — the business still needs
+   to find them, they just are not the thing to look at. */
+.biz-camp.is-off {
+  opacity: 0.62;
+}
+
+.biz-camp-head {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.biz-status {
+  flex-shrink: 0;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--faint);
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.biz-camp-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.biz-camp-stats b {
+  display: block;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.biz-camp-stats span {
+  font-size: 11.5px;
+  color: var(--faint);
+}
+
+/* Campaign controls */
+.campctl {
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.campctl-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.campctl-btn {
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: inset 0 0 0 1px var(--line);
+  border: 0;
+  transition: color 140ms ease, background 140ms ease;
+}
+
+.campctl-btn:hover:not(:disabled) {
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.campctl-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.campctl-danger:hover:not(:disabled) {
+  color: var(--held);
+  box-shadow: inset 0 0 0 1px rgba(224, 118, 90, 0.4);
+}
+
+@media (min-width: 700px) {
+  .biz-kpis {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1100px) {
+  .biz-grid {
+    grid-template-columns: minmax(0, 1.35fr) minmax(320px, 1fr);
+  }
+  .biz-camps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1500px) {
+  .biz-camps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* My campaigns — additions for campaign state and sharing. */
+.mycamp.is-off {
+  opacity: 0.66;
+}
+
+.mycamp-warn {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--amber);
+  background: var(--amber-glow);
+  padding: 9px 12px;
+  border-radius: 11px;
+}
+
+.mycamp-share {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  cursor: pointer;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: inset 0 0 0 1px var(--line);
+  border: 0;
+  transition: color 140ms ease, background 140ms ease;
+}
+
+.mycamp-share:hover {
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.mycamp-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.mycamp-details {
+  color: var(--amber);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------------------
+   Responsive corrections.
+
+   The 248px rail appears at 900px, so the content area actually gets *narrower*
+   there — 704px at 768px, 588px at 900px. Any two-column split triggered at 900px
+   is therefore tighter than the same layout one breakpoint down, which is the
+   opposite of what a breakpoint is for.
+
+   Measured content widths (viewport − 248 rail − 64 padding):
+     390 → 326    900 → 588   1280 →  968   1600 → 1288
+     768 → 704   1100 → 788   1440 → 1128   1920 → 1608
+
+   So splits are pinned to where the resulting column is actually usable, not to
+   where the viewport happens to cross a round number.
+   --------------------------------------------------------------------------- */
+
+/* Campaign cards need ~320px to hold three stats and the control row. Inside the
+   already-split dashboard grid that only happens on a wide screen. */
+@media (min-width: 1100px) {
+  .biz-camps {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (min-width: 1650px) {
+  .biz-camps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* My campaigns is full-width, so it can split earlier — but not at 900px, where the
+   rail has just eaten 248px and each card would be 287px. */
+@media (min-width: 900px) and (max-width: 1099px) {
+  .mycamps {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Four KPIs across a 588px column is 132px each — not enough for a money figure
+   with a sublabel. Two by two until the column can carry them. */
+@media (min-width: 900px) and (max-width: 1199px) {
+  .biz-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Same reasoning for the account panel: the wallet address is 42 characters. */
+@media (min-width: 900px) and (max-width: 1099px) {
+  .acctpanel {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Nothing may scroll the page sideways.
+
+   Long unbroken strings — wallet addresses, referral links, transaction hashes —
+   are the usual cause, and they appear all over this product.
+   --------------------------------------------------------------------------- */
+html,
+body {
+  overflow-x: hidden;
+}
+
+.canvas,
+.screen {
+  max-width: 100%;
+  min-width: 0;
+}
+
+/* Grid and flex children default to min-width:auto, which lets a long string push
+   its container wider than the screen. */
+.biz-grid > *,
+.biz-side > *,
+.two-up > *,
+.mycamps > *,
+.biz-camps > * {
+  min-width: 0;
+}
+
+.grow-row .body,
+.grow-row .body b,
+.grow-row .body span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* ---------------------------------------------------------------------------
+   The marketplace grid, sized against the space it actually has.
+
+   Two rails eat this page: the 248px app rail and the 216px filter rail, both
+   appearing at 900px. So the grid area collapses from 656px at 720px wide to 336px
+   at 900px — and the old rules put *two* columns in that 336px, giving 162px cards,
+   then three columns at 1200px for 203px cards. A campaign card carries a business
+   name, two tags, the payout figure and a funded bar; below ~280px it stops being
+   readable, which is exactly how it looked.
+
+     viewport   grid area   card at old rules
+        900px       336px        162px
+       1200px       636px        203px
+       1280px       716px        230px
+
+   Columns now step up only where the resulting card clears 280px.
+   --------------------------------------------------------------------------- */
+@media (min-width: 900px) and (max-width: 1249px) {
+  /* No filter rail here, so the full content width is the grid. */
+  .mk-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1250px) and (max-width: 1649px) {
+  .mk-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1650px) {
+  .mk-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 2100px) {
+  .mk-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
