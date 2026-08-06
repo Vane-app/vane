@@ -79,7 +79,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { mode, setMode } = useMode();
-  const { me, loading } = useMe();
+  const { me, loading, refresh } = useMe();
 
   /**
    * Send people where they belong, once we know who they are.
@@ -136,12 +136,34 @@ export function Shell({ children }: { children: React.ReactNode }) {
    * make. Whichever side you are missing, you are sent to join it — the same way, both
    * directions.
    */
-  function switchMode(m: Mode) {
+  /**
+   * Switching sides.
+   *
+   * Earning needs nothing we do not already have — the email, the wallet, the account
+   * all exist — so the account simply gains the side and goes. It used to send people
+   * through onboarding to be asked for an email we already had and offered a wallet
+   * they already owned.
+   *
+   * Advertising still needs a name and a logo, because a business has to be something
+   * a promoter can recognise before it appears in a marketplace. That form reuses
+   * everything else.
+   */
+  async function switchMode(m: Mode) {
     const side = m === "advertising" ? "business" : "tasker";
+
     if (!hasSide(me, side)) {
-      router.push(side === "business" ? "/join/business" : "/join/tasker");
-      return;
+      if (side === "business") {
+        router.push("/join/business");
+        return;
+      }
+      await fetch("/api/me/side", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ side: "tasker" }),
+      }).catch(() => {});
+      await refresh();
     }
+
     setMode(m);
     router.push(HOME[m]);
   }
@@ -154,7 +176,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <b>vane</b>
         </Link>
 
-        <ModeToggle mode={mode} onSwitch={switchMode} />
+        <ModeToggle mode={mode} onSwitch={(m) => void switchMode(m)} />
 
         <nav className="rail-nav" aria-label="Main">
           {nav.map((n) => (

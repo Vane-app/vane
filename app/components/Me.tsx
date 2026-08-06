@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 /**
  * Who is already signed in.
@@ -28,6 +28,12 @@ export function useMe() {
   const [me, setMe] = useState<Me | null>(null);
   const [loading, setLoading] = useState(true);
 
+  /** Re-read the account, after something changes it — adding a side, say. */
+  const refresh = useCallback(async () => {
+    const d = await fetch("/api/me").then((r) => r.json()).catch(() => null);
+    if (d) setMe(d.user ?? null);
+  }, []);
+
   useEffect(() => {
     let live = true;
     fetch("/api/me")
@@ -46,7 +52,7 @@ export function useMe() {
     };
   }, []);
 
-  return { me, loading, known: Boolean(me) };
+  return { me, loading, refresh, known: Boolean(me) };
 }
 
 /** Whether this account has already been through the other side's onboarding. */

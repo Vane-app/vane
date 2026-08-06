@@ -8,7 +8,11 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Do not cancel superseded runs. Cancelling saves minutes, but GitHub reports a
+  # cancelled run as a failure — so a burst of pushes produced a stream of "CI failed"
+  # emails for commits that were never even tested, and the real failures were
+  # indistinguishable from the noise.
+  cancel-in-progress: false
 
 jobs:
   build:
