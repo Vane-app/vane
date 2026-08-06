@@ -22,8 +22,19 @@ jobs:
           node-version: 22
           cache: npm
 
+      # `npm install`, not `npm ci`.
+      #
+      # Several dependencies here ship a native binary per platform — lightningcss,
+      # @tailwindcss/oxide, @next/swc, esbuild, sharp. npm records only the host
+      # platform's binary in the lockfile (npm/cli#4828), and this lockfile is
+      # generated on Windows, so `npm ci` on Linux installs nothing it can load and
+      # the app build dies on the first stylesheet.
+      #
+      # This trades strict lockfile reproducibility for building at all on a second
+      # platform. It is also what Vercel does, which is why deploys worked while CI
+      # failed on every push.
       - name: Install
-        run: npm ci
+        run: npm install --no-audit --no-fund
 
       - name: Compile contracts
         run: npm run compile -w @vane/contracts
