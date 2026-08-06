@@ -4754,3 +4754,23 @@ body {
 .post-type.is-soon:hover {
   background: rgba(255, 255, 255, 0.05);
 }
+
+/* Whether a campaign is worth a promoter's time. The business's side of the deal is
+   protected by the contract; this is the only thing protecting the other side. */
+.post-fairness {
+  font-size: 12.5px;
+  line-height: 1.45;
+  padding: 10px 12px;
+  border-radius: 11px;
+  margin-bottom: 14px;
+}
+
+.post-fairness.warn {
+  color: var(--amber);
+  background: var(--amber-glow);
+}
+
+.post-fairness.bad {
+  color: var(--held);
+  background: var(--held-soft);
+}

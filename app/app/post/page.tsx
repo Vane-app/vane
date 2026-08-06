@@ -7,7 +7,7 @@ import { Upload } from "../../components/Upload";
 import { useWallet } from "../../components/Wallet";
 import { useProfile } from "../../components/Profile";
 import { Back } from "../../components/Back";
-import { TASK_TYPES, usd, FEE_BPS, type TaskType } from "../../lib/data";
+import { usd, FEE_BPS, type TaskType } from "../../lib/data";
 
 /**
  * Post a campaign — the business side of the marketplace.
@@ -17,13 +17,6 @@ import { TASK_TYPES, usd, FEE_BPS, type TaskType } from "../../lib/data";
  * locked. This is where a campaign is born; everything promoters browse comes
  * from here.
  */
-
-const KIND_RESULT: Record<TaskType, string> = {
-  referral: "a verified signup, deposit or trade from someone you referred",
-  content: "an approved post, review or video that meets your brief",
-  onchain: "a verified onchain action — a mint, swap, stake or bridge",
-  bounty: "a delivered task you approve, backed by a staked dispute window",
-};
 
 export default function PostCampaign() {
   // Whether this business's results happen onchain was asked at signup and then
@@ -103,6 +96,26 @@ export default function PostCampaign() {
   const results = Math.floor(budget / rate);
   const fee = (budget * FEE_BPS) / 10_000;
 
+  /**
+   * Whether this is worth someone's time.
+   *
+   * A marketplace is only fair if both sides can judge the deal. The business's side
+   * is protected by code — the budget is locked, unspent funds return, fraud is
+   * refused. The promoter's side was not protected at all: nothing stopped a campaign
+   * paying $0.02 a result, and nobody was told.
+   *
+   * A warning rather than a block. The business decides its own rate; it just should
+   * not find out from silence that nobody took the work.
+   */
+  const rateNote =
+    rate < 0.25
+      ? { tone: "bad", text: "Below what most promoters will work for. Expect very few takers." }
+      : rate < 1
+        ? { tone: "warn", text: "Low for a referral. Fine for a quick action, thin for anything that takes effort." }
+        : results < 5
+          ? { tone: "warn", text: `This budget only buys ${results} result${results === 1 ? "" : "s"} — promoters look for room to earn.` }
+          : null;
+
   if (posted) {
     return (
       <main className="screen" style={{ justifyContent: "center", textAlign: "center", paddingBottom: 40 }}>
@@ -163,38 +176,24 @@ export default function PostCampaign() {
             </p>
           </Field>
 
-          <Field label="What do you want people to do?">
-            <div className="post-types">
-              {TASK_TYPES.map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  className={`post-type ${type === t.id ? "on" : ""} ${t.live ? "" : "is-soon"}`}
-                  onClick={() => t.live && setType(t.id)}
-                  disabled={!t.live}
-                  aria-disabled={!t.live}
-                >
-                  <b>
-                    {t.label}
-                    {!t.live && <i className="ob-soon">Soon</i>}
-                  </b>
-                  <span>{t.verb}</span>
-                </button>
-              ))}
-            </div>
-            <p className="tiny" style={{ marginTop: 10 }}>
-              You&rsquo;ll pay for {KIND_RESULT[type]}.
-            </p>
-          </Field>
-
-          <Field label="Describe the result that gets paid">
+          {/* The result comes first, because it is the thing being bought.
+              This used to open with a four-way choice of task type — an internal
+              detail of how the falcon verifies, put in front of a business that only
+              wants to say what it will pay for. Two of the four were disabled, so the
+              first screen advertised what is not built. The type is now inferred. */}
+          <Field label="What result do you pay for?">
             <textarea
               value={result}
               onChange={(e) => setResult(e.target.value)}
-              placeholder="e.g. A new user signs up and makes their first deposit of $10 or more."
+              placeholder="e.g. Someone signs up and makes their first deposit of $10 or more"
               rows={3}
               className="post-textarea"
+              autoFocus
             />
+            <p className="tiny" style={{ marginTop: 8 }}>
+              Be specific — this is exactly what the falcon verifies before it releases a payout, and what a
+              promoter reads before deciding to work on it.
+            </p>
           </Field>
 
           <div className="post-row">
@@ -243,11 +242,15 @@ export default function PostCampaign() {
               </div>
             </div>
 
+            {rateNote && (
+              <p className={`post-fairness ${rateNote.tone}`}>{rateNote.text}</p>
+            )}
+
             <div className="post-terms">
               <Term k="Budget locked" v={usd(budget * 1_000_000, { cents: false })} />
               <Term k="Vane's fee (2.5%)" v={`${usd(fee * 1_000_000)} on results only`} />
               <Term k="If unused" v="Returns to you automatically" />
-              <Term k="Verified by" v={type === "onchain" ? "Onchain evidence" : "Agent + your integration"} last />
+              <Term k="Verified by" v="Onchain evidence — nothing self-reported" last />
             </div>
 
             <button
