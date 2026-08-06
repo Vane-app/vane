@@ -4919,3 +4919,33 @@ body {
     border-left: 1px solid var(--line);
   }
 }
+
+/* Asked once of a new promoter, and skippable — it changes what gets recommended,
+   not whether you can work. */
+.promoprofile {
+  padding: 18px;
+  border-radius: 18px;
+  margin-bottom: 20px;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.promoprofile-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.promoprofile-skip {
+  flex-shrink: 0;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  color: var(--faint);
+  font-weight: 600;
+}
+
+.promoprofile-skip:hover {
+  color: var(--ink);
+}

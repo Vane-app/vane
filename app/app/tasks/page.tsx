@@ -5,6 +5,8 @@ import { useEffect, useMemo, useState } from "react";
 import { AppBar, TabBar } from "../../components/AppChrome";
 import { Logo } from "../../components/Logo";
 import { useProfile } from "../../components/Profile";
+import { useMe } from "../../components/Me";
+import { PromoterProfile } from "../../components/PromoterProfile";
 import {
   allCampaigns,
   INDUSTRIES,
@@ -51,6 +53,21 @@ export default function Browse() {
    * a campaign, land back on the marketplace, and not find it — the most obviously
    * broken thing a marketplace can do.
    */
+  /**
+   * Ask a new promoter what they promote — once, here, and skippable.
+   *
+   * Someone who switched sides from a business never gave us any of this, because
+   * adding a side is instant and rightly collects nothing. But "best match" sorts
+   * against exactly these strengths, so without them the feed cannot personalise.
+   */
+  const { me } = useMe();
+  const [askProfile, setAskProfile] = useState(false);
+  useEffect(() => {
+    if (!me) return;
+    const skipped = sessionStorage.getItem("vane-skip-promoter-profile");
+    if (!skipped && (me.strengths?.length ?? 0) === 0) setAskProfile(true);
+  }, [me]);
+
   const [campaigns, setCampaigns] = useState<Campaign[]>(allCampaigns);
   const [stale, setStale] = useState(false);
 
@@ -271,6 +288,15 @@ export default function Browse() {
           {/* What is narrowing the list, and how to undo it — each chip on its own, or
               all at once. Without this the only route back was to filter down to
               nothing and use the empty state's reset. */}
+          {askProfile && (
+            <PromoterProfile
+              onDone={() => {
+                sessionStorage.setItem("vane-skip-promoter-profile", "1");
+                setAskProfile(false);
+              }}
+            />
+          )}
+
           {stale && (
             <p className="mk-stale">
               Couldn&rsquo;t reach the marketplace just now — showing what we had. Refresh for the latest.

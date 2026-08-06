@@ -22,6 +22,7 @@ export interface Me {
   avatar: string;
   walletAddress: string;
   reputation: number;
+  strengths?: string[];
 }
 
 export function useMe() {
