@@ -63,7 +63,13 @@ export default function PostCampaign() {
 
       if (data.challenges?.length && data.auth) {
         for (const c of data.challenges) {
-          setLockStep(c.step === "approve" ? "Approve the vault…" : "Lock the budget…");
+          setLockStep(
+            c.step === "approve"
+              ? "Approve the vault…"
+              : c.step === "fund"
+                ? "Lock the budget…"
+                : "Authorise result reporting…",
+          );
           await approve({ ...data.auth, challengeId: c.challengeId });
         }
 

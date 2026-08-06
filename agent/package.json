@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "The Vane falcon — verifies results on Arc and settles USDC payouts autonomously.",
+  "description": "The Vane falcon \u2014 verifies results on Arc and settles USDC payouts autonomously.",
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
@@ -11,7 +11,8 @@
     "sybil": "tsx src/sybil.ts",
     "tasker": "tsx src/tasker.ts",
     "nano": "tsx src/nano.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "convert": "tsx src/convert.ts"
   },
   "dependencies": {
     "@circle-fin/developer-controlled-wallets": "^10.8.0",

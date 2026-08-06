@@ -104,18 +104,46 @@ export async function POST(req: Request) {
       abiParameters: [String(budget), String(rewardPerAction), String(durationSeconds), "0"],
     });
 
+    /**
+     * Authorise the product to report conversions.
+     *
+     * `recordConversion` only accepts a reporter the campaign owner has approved, and
+     * the registry checks `msg.sender` against that owner — so this is the business's
+     * signature to give, nobody else's. Without it a campaign funds successfully and
+     * then silently cannot receive a single result, which is the worst possible place
+     * for a missing step to surface.
+     *
+     * Folded into posting rather than left as a separate screen: a business should not
+     * have to know that authorising a reporter is a thing.
+     */
+    const registry = process.env.VANE_REGISTRY_ADDRESS;
+    const reporter = process.env.VANE_DEMO_BUSINESS_ADDRESS;
+    const challenges = [
+      { step: "approve", challengeId: approveChallenge },
+      { step: "fund", challengeId: fundChallenge },
+    ];
+
+    if (registry && reporter && predictedId !== null) {
+      challenges.push({
+        step: "authorise",
+        challengeId: await createContractChallenge({
+          ...common,
+          contractAddress: registry,
+          abiFunctionSignature: "setReporter(uint256,address,bool)",
+          abiParameters: [String(predictedId), reporter, true],
+        }),
+      });
+    }
+
     return NextResponse.json({
       campaign: c,
-      funded: false, // true only once the business has approved both on-chain
+      funded: false, // true only once the business has approved these on-chain
       auth: {
         userToken: session.userToken,
         encryptionKey: session.encryptionKey,
         appId: session.appId,
       },
-      challenges: [
-        { step: "approve", challengeId: approveChallenge },
-        { step: "fund", challengeId: fundChallenge },
-      ],
+      challenges,
     });
   } catch (err) {
     // The listing exists either way; only the on-chain funding failed.

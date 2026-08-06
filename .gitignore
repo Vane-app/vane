@@ -21,3 +21,5 @@ recovery_file_*.dat
 # pitch deck — a submission artifact, not part of the app
 app/public/deck.html
 app/public/deck/
+
+convert-wallets.json
