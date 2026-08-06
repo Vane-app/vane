@@ -52,15 +52,22 @@ export default function Browse() {
    * broken thing a marketplace can do.
    */
   const [campaigns, setCampaigns] = useState<Campaign[]>(allCampaigns);
+  const [stale, setStale] = useState(false);
+
   useEffect(() => {
     let live = true;
     fetch("/api/campaigns")
       .then((r) => r.json())
       .then((d) => {
-        if (live && Array.isArray(d.campaigns) && d.campaigns.length) setCampaigns(d.campaigns);
+        if (!live) return;
+        if (Array.isArray(d.campaigns) && d.campaigns.length) setCampaigns(d.campaigns);
+        setStale(false);
       })
       .catch(() => {
-        // Keep the seeded list rather than blanking the marketplace on a network blip.
+        // Keep the seeded list rather than blanking the marketplace, but say so — a
+        // failed load used to look identical to a working one, so someone could take
+        // a campaign that no longer exists.
+        if (live) setStale(true);
       });
     return () => {
       live = false;
@@ -264,6 +271,12 @@ export default function Browse() {
           {/* What is narrowing the list, and how to undo it — each chip on its own, or
               all at once. Without this the only route back was to filter down to
               nothing and use the empty state's reset. */}
+          {stale && (
+            <p className="mk-stale">
+              Couldn&rsquo;t reach the marketplace just now — showing what we had. Refresh for the latest.
+            </p>
+          )}
+
           {chips.length > 0 && (
             <div className="mk-chips">
               {chips.map((c) => (

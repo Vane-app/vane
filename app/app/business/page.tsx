@@ -130,7 +130,26 @@ export default function BusinessDashboard() {
   const campaigns = data?.campaigns ?? [];
   const spentPct = data && data.locked > 0 ? Math.round((data.spent / data.locked) * 100) : 0;
 
-  if (loaded && campaigns.length === 0) {
+  /**
+   * Say nothing until we know something.
+   *
+   * This rendered the full dashboard while loading, with every figure showing "—" and
+   * an empty campaign list — so a business with live campaigns saw what looked like a
+   * broken, empty console for a moment before its own data arrived.
+   */
+  if (!loaded) {
+    return (
+      <main className="screen">
+        <AppBar />
+        <div className="biz-loading" aria-live="polite">
+          <span className="tiny">Loading your campaigns…</span>
+        </div>
+        <TabBar />
+      </main>
+    );
+  }
+
+  if (campaigns.length === 0) {
     return (
       <main className="screen">
         <AppBar />

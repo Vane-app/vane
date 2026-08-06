@@ -43,6 +43,7 @@ export default function Earnings() {
   const [results, setResults] = useState(0);
   const [streams, setStreams] = useState<Stream[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
 
   useEffect(() => {
     let live = true;

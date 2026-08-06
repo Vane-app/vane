@@ -4830,3 +4830,28 @@ body {
   border-radius: 999px;
   white-space: nowrap;
 }
+
+/* Holds the content area while we find out who is looking, so the page does not
+   flash a dashboard at someone about to be redirected away from it. The chrome is
+   already correct — it does not depend on the answer. */
+.settling {
+  min-height: 60vh;
+}
+
+.biz-loading {
+  min-height: 50vh;
+  display: grid;
+  place-items: center;
+}
+
+/* A marketplace showing stale data must say so — a failed load used to look
+   identical to a working one, so someone could take a campaign that no longer runs. */
+.mk-stale {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--amber);
+  background: var(--amber-glow);
+  padding: 10px 13px;
+  border-radius: 11px;
+  margin-bottom: 14px;
+}

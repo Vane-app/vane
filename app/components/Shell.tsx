@@ -67,6 +67,8 @@ const BARE = ["/", "/preview", "/start", "/login", "/join/tasker", "/join/busine
  */
 const PUBLIC_PREFIXES = ["/tasks", "/campaign/", "/business/"];
 const BUSINESS_ONLY = ["/business", "/post"];
+/** Your links and your earnings only exist if you joined as a tasker. */
+const TASKER_ONLY = ["/campaigns", "/earnings"];
 
 function isPublic(pathname: string): boolean {
   if (pathname === "/business") return false; // the dashboard, not a public profile
@@ -94,26 +96,26 @@ export function Shell({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const needsBusiness = BUSINESS_ONLY.some((p) => pathname === p || pathname.startsWith(p + "/"));
-    if (needsBusiness && !hasSide(me, "business")) {
+    const matches = (list: string[]) => list.some((p) => pathname === p || pathname.startsWith(p + "/"));
+    if (matches(BUSINESS_ONLY) && !hasSide(me, "business")) {
       router.replace("/join/business");
+      return;
+    }
+    if (matches(TASKER_ONLY) && !hasSide(me, "tasker")) {
+      router.replace("/join/tasker");
     }
   }, [loading, me, pathname, router]);
 
   if (BARE.includes(pathname)) return <>{children}</>;
 
-  // Hold the frame rather than flashing a dashboard at someone who is about to be
-  // redirected away from it.
-  const gated = !isPublic(pathname) && (loading || !me);
-  if (gated) {
-    return (
-      <div className="app">
-        <main className="canvas">
-          <p className="sub" style={{ padding: 40 }}>{loading ? "" : "Taking you to sign in…"}</p>
-        </main>
-      </div>
-    );
-  }
+  /**
+   * Show the chrome immediately, and only hold back the content.
+   *
+   * This used to swap out the entire frame while `/api/me` answered — rail, nav and
+   * all — so every private page flashed a bare panel before the real app appeared.
+   * The chrome does not depend on who you are; only the page inside it does.
+   */
+  const settling = !isPublic(pathname) && (loading || !me);
 
   const nav = NAV[mode];
 
@@ -125,9 +127,19 @@ export function Shell({ children }: { children: React.ReactNode }) {
    * has not onboarded as a business is sent to do that instead — the mode only changes
    * once there is something real behind it.
    */
+  /**
+   * Switching sides requires having that side.
+   *
+   * Advertising was gated and earning was not, so a business could flip to the earning
+   * side and land on screens for an account that had never joined as a tasker: a
+   * campaign feed it could not take from, links it did not have, earnings it could not
+   * make. Whichever side you are missing, you are sent to join it — the same way, both
+   * directions.
+   */
   function switchMode(m: Mode) {
-    if (m === "advertising" && !hasSide(me, "business")) {
-      router.push("/join/business");
+    const side = m === "advertising" ? "business" : "tasker";
+    if (!hasSide(me, side)) {
+      router.push(side === "business" ? "/join/business" : "/join/tasker");
       return;
     }
     setMode(m);

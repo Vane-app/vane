@@ -56,6 +56,7 @@ function warning(s: Stream): string | null {
 export default function MyCampaigns() {
   const [streams, setStreams] = useState<Stream[] | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
 
   useEffect(() => {
     let live = true;
@@ -63,7 +64,13 @@ export default function MyCampaigns() {
       fetch("/api/earnings")
         .then((r) => r.json())
         .then((d) => live && setStreams(Array.isArray(d.streams) ? d.streams : []))
-        .catch(() => live && setStreams([]));
+        .catch(() => {
+          // A failure must not read as 'you have none'.
+          if (live) {
+            setStreams([]);
+            setLoadFailed(true);
+          }
+        });
     void load();
     const t = setInterval(load, 20_000);
     return () => {
@@ -125,7 +132,19 @@ export default function MyCampaigns() {
 
       {streams === null && <p className="sub">Loading…</p>}
 
-      {streams !== null && streams.length === 0 && (
+      {loadFailed && (
+        <section className="card fade-up" style={{ textAlign: "center", padding: "28px 22px" }}>
+          <b style={{ fontSize: 16, display: "block", marginBottom: 8 }}>Couldn&rsquo;t load your campaigns</b>
+          <p className="sub" style={{ fontSize: 14 }}>
+            Your links are safe — this is a connection problem, not a lost campaign.
+          </p>
+          <button className="btn btn-amber" style={{ marginTop: 16, maxWidth: 240, marginInline: "auto" }} onClick={() => location.reload()}>
+            Try again
+          </button>
+        </section>
+      )}
+
+      {!loadFailed && streams !== null && streams.length === 0 && (
         <section className="card fade-up" style={{ textAlign: "center", padding: "34px 22px" }}>
           <b style={{ fontSize: 17, display: "block", marginBottom: 8 }}>You haven&rsquo;t taken a campaign yet</b>
           <p className="sub" style={{ fontSize: 14, maxWidth: "40ch", marginInline: "auto" }}>
