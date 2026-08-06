@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Mark } from "./Falcon";
 import { useMode, type Mode } from "./Mode";
 import { useMe, hasSide } from "./Me";
+import { SignOut } from "./Account";
 
 /**
  * App chrome — one account, two modes, two shapes.
@@ -35,13 +36,12 @@ const ICONS = {
 const NAV: Record<Mode, { href: string; label: string; icon: React.ReactNode }[]> = {
   earning: [
     { href: "/tasks", label: "Browse", icon: ICONS.browse },
+    { href: "/campaigns", label: "My campaigns", icon: ICONS.account },
     { href: "/earnings", label: "Earnings", icon: ICONS.earnings },
-    { href: "/account", label: "Account", icon: ICONS.account },
   ],
   advertising: [
     { href: "/business", label: "Dashboard", icon: ICONS.dashboard },
     { href: "/post", label: "Post", icon: ICONS.post },
-    { href: "/account", label: "Account", icon: ICONS.account },
   ],
 };
 
@@ -98,6 +98,28 @@ export function Shell({ children }: { children: React.ReactNode }) {
             </Link>
           ))}
         </nav>
+
+        {/* Who you are, and the way out. Signing out previously meant navigating into
+            a dashboard to find it — every other product puts it here, because this is
+            where people look. */}
+        {me && (
+          <div className="rail-user">
+            {me.avatar ? (
+              <span className="face-ring" style={{ padding: 2 }}>
+                <img className="face" src={me.avatar} alt="" width={32} height={32} />
+              </span>
+            ) : (
+              <span className="avatar" style={{ width: 32, height: 32, fontSize: 13 }} aria-hidden="true">
+                {(me.name || me.email || "V").slice(0, 1).toUpperCase()}
+              </span>
+            )}
+            <span className="rail-user-id">
+              <b>{me.name || me.email.split("@")[0]}</b>
+              <i>{me.email}</i>
+            </span>
+            <SignOut className="rail-signout" />
+          </div>
+        )}
 
         <div className="rail-foot">
           <span className="livedot" aria-hidden="true" />

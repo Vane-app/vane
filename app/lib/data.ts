@@ -8,7 +8,12 @@
  * for display at the edge.
  */
 
-export type CampaignStatus = "active" | "cancelled" | "expired";
+/**
+ * `paused` is off-chain only: the listing is hidden and no new work can be taken,
+ * while the escrow is untouched and work in flight still settles. The contract has no
+ * notion of pausing, and pretending otherwise would imply money had moved.
+ */
+export type CampaignStatus = "active" | "paused" | "ended" | "cancelled" | "expired";
 export type RewardKind = "signup" | "deposit" | "trade" | "subscription" | "post" | "review" | "mint";
 
 /** The four ways to earn on Vane — one settlement engine underneath all of them. */
@@ -471,7 +476,9 @@ export function daysLeft(c: Campaign): number {
 }
 
 export function rate(c: Campaign): string {
-  return c.rateLabel ?? usd(c.rewardPerAction);
+  // `||` not `??`: an empty label is not a label. This is the headline number on
+  // every card, so it must never lose to a blank string.
+  return c.rateLabel || usd(c.rewardPerAction);
 }
 
 export function rateNote(c: Campaign): string {

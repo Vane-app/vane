@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { TabBar, AppBar } from "../../components/AppChrome";
 import { Mascot, type FalconState } from "../../components/Mascot";
+import { AccountPanel } from "../../components/Account";
+import { CampaignControls } from "../../components/CampaignControls";
 import { usd } from "../../lib/data";
 
 /**
@@ -137,15 +139,34 @@ interface BizCampaign {
   business: string;
   initial: string;
   colour: string;
+  blurb: string;
   status: string;
   budget: number;
   spent: number;
+  remaining: number;
   rewardPerAction: number;
+  rateLabel: string | null;
   endsAt: number;
+  taskType: string;
+  escrowCampaignId: number | null;
   promoters: number;
   results: number;
   clicks: number;
-  escrowCampaignId: number | null;
+  resultsLeft: number;
+  daysLeft: number;
+  conversion: number | null;
+}
+
+interface Promoter {
+  id: string;
+  name: string;
+  avatar: string;
+  reputation: number;
+  clicks: number;
+  results: number;
+  earned: number;
+  campaigns: number;
+  conversion: number | null;
 }
 
 interface Summary {
@@ -155,36 +176,41 @@ interface Summary {
   results: number;
   clicks: number;
   promoters: number;
+  costPerResult: number | null;
   campaigns: BizCampaign[];
 }
 
 /**
- * Business dashboard.
+ * Business dashboard — an operating console, not a report.
  *
- * Every figure is this account's own, read from /api/business.
+ * Every figure is this account's own, read from /api/business. It previously rendered
+ * a seeded campaign with invented promoters and "79 verified results" — a portfolio
+ * belonging to nobody, shown to anyone who opened the page.
  *
- * It used to render a seeded campaign with invented promoters, "79 verified results"
- * and "6 refused by Vane" — a portfolio belonging to nobody, shown to anyone who
- * opened the page. A business that has posted nothing now sees that it has posted
- * nothing, which is both true and more useful.
+ * Four things a business needs and had none of: what each campaign is costing and how
+ * much longer it can run, who is promoting them, the falcon's real decisions, and the
+ * ability to actually stop something.
  */
 export default function BusinessDashboard() {
   const [data, setData] = useState<Summary | null>(null);
+  const [promoters, setPromoters] = useState<Promoter[]>([]);
   const [loaded, setLoaded] = useState(false);
 
-  useEffect(() => {
-    let live = true;
-    fetch("/api/business")
+  const load = useCallback(() => {
+    void fetch("/api/business")
       .then((r) => r.json())
-      .then((d) => {
-        if (live && !d.error) setData(d as Summary);
-      })
+      .then((d) => !d.error && setData(d as Summary))
       .catch(() => {})
-      .finally(() => live && setLoaded(true));
-    return () => {
-      live = false;
-    };
+      .finally(() => setLoaded(true));
+    void fetch("/api/business/promoters")
+      .then((r) => r.json())
+      .then((d) => Array.isArray(d.promoters) && setPromoters(d.promoters))
+      .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const campaigns = data?.campaigns ?? [];
   const spentPct = data && data.locked > 0 ? Math.round((data.spent / data.locked) * 100) : 0;
@@ -210,6 +236,7 @@ export default function BusinessDashboard() {
           <AgentExplainer />
         </section>
 
+        <AccountPanel />
         <TabBar />
       </main>
     );
@@ -219,103 +246,161 @@ export default function BusinessDashboard() {
     <main className="screen">
       <AppBar />
 
-      <header style={{ marginBottom: 22 }}>
-        <h1 className="fade-up" style={{ fontSize: 29, lineHeight: 1.1, maxWidth: "13ch" }}>
-          {data && data.results > 0 ? "Your campaigns are working" : "Your campaigns are live"}
-        </h1>
-        <p className="sub fade-up d1" style={{ fontSize: 13.5, marginTop: 6 }}>
-          {campaigns.length} campaign{campaigns.length === 1 ? "" : "s"} ·{" "}
-          {data ? usd(data.remaining, { cents: false }) : "—"} still in escrow
-        </p>
+      <header className="biz-head">
+        <div>
+          <h1 className="fade-up" style={{ fontSize: 29, lineHeight: 1.1 }}>
+            {data && data.results > 0 ? "Your campaigns are working" : "Your campaigns are live"}
+          </h1>
+          <p className="sub fade-up d1" style={{ fontSize: 13.5, marginTop: 6 }}>
+            {campaigns.length} campaign{campaigns.length === 1 ? "" : "s"} ·{" "}
+            {data ? usd(data.remaining, { cents: false }) : "—"} still in escrow
+          </p>
+        </div>
+        <Link href="/post" className="btn btn-amber biz-post">
+          Post a campaign
+        </Link>
       </header>
 
-      <section className="card fade-up d2" style={{ marginBottom: 12 }}>
-        <div className="row" style={{ justifyContent: "space-between", marginBottom: 12 }}>
-          <span className="eyebrow">Escrow balance</span>
-          <span className="tiny num">{data ? usd(data.locked, { cents: false }) : "—"} locked</span>
+      {/* The four numbers a business runs on. Cost per result is the one that says
+          whether any of this is worth doing. */}
+      <section className="biz-kpis fade-up d1">
+        <div className="biz-kpi">
+          <b className="num">{data ? usd(data.spent, { cents: false }) : "—"}</b>
+          <span>paid out</span>
+          <i>
+            {spentPct}% of {data ? usd(data.locked, { cents: false }) : "—"} locked
+          </i>
         </div>
-
-        <div className="row" style={{ alignItems: "baseline", gap: 8, marginBottom: 14 }}>
-          <b className="num" style={{ fontSize: 30, fontWeight: 800, letterSpacing: "-.035em" }}>
-            {data ? usd(data.spent, { cents: false }) : "—"}
-          </b>
-          <span className="tiny num">paid out so far</span>
-        </div>
-
-        <div className="poolbar">
-          <i style={{ width: `${spentPct}%` }} />
-        </div>
-        <p className="tiny num" style={{ marginTop: 9 }}>
-          {spentPct}% spent · the rest returns to you automatically when a campaign ends
-        </p>
-      </section>
-
-      <section className="tiles fade-up d3" style={{ marginBottom: 22 }}>
-        <div className="tile">
-          <span className="tile-ic" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="16" height="16">
-              <path d="M5 12.5 L10 17.5 L19 7" fill="none" stroke="var(--verified)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </span>
+        <div className="biz-kpi">
           <b className="num">{data?.results ?? 0}</b>
           <span>verified results</span>
+          <i>{data?.clicks ?? 0} clicks driven</i>
         </div>
-
-        <div className="tile">
-          <span className="tile-ic" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="16" height="16">
-              <path d="M12 3 L20 6.5 V12 C20 16.5 16.6 19.8 12 21 C7.4 19.8 4 16.5 4 12 V6.5 Z" fill="none" stroke="var(--amber)" strokeWidth="1.9" strokeLinejoin="round" />
-            </svg>
-          </span>
+        <div className="biz-kpi">
+          <b className="num">{data?.costPerResult ? usd(data.costPerResult) : "—"}</b>
+          <span>cost per result</span>
+          <i>{data?.results ? "across every campaign" : "no results yet"}</i>
+        </div>
+        <div className="biz-kpi">
           <b className="num">{data?.promoters ?? 0}</b>
-          <span>promoters on it</span>
+          <span>promoters</span>
+          <i>{promoters.length ? `top earner ${usd(promoters[0].earned)}` : "none yet"}</i>
         </div>
       </section>
 
-      <section className="fade-up d3" style={{ marginBottom: 22 }}>
-        <div className="sec-head">
-          <span>Your campaigns</span>
-          <Link href="/post">Post another</Link>
-        </div>
-        <div className="group">
-          {campaigns.map((c) => (
-            <Link key={c.id} href={`/campaign/${c.id}`} className="grow-row">
-              <span className="avatar" style={{ background: c.colour, width: 30, height: 30, fontSize: 12 }} aria-hidden="true">
-                {c.initial}
-              </span>
-              <div className="body">
-                <b>
-                  {c.business}
-                  {c.status === "active" && <i className="livedot" />}
-                </b>
-                <span>
-                  {c.results} result{c.results === 1 ? "" : "s"} · {c.promoters} promoter
-                  {c.promoters === 1 ? "" : "s"} · {usd(c.rewardPerAction)} each
-                  {c.escrowCampaignId === null && " · not yet funded onchain"}
-                </span>
-              </div>
-              <b className="amt num">{usd(c.budget - c.spent, { cents: false })}</b>
-            </Link>
-          ))}
-        </div>
-      </section>
+      <div className="biz-grid">
+        <section className="fade-up d2">
+          <div className="sec-head">
+            <span>Campaigns</span>
+          </div>
+          <div className="biz-camps">
+            {campaigns.map((c) => (
+              <article key={c.id} className={`biz-camp ${c.status !== "active" ? "is-off" : ""}`}>
+                <div className="biz-camp-head">
+                  <span
+                    className="avatar"
+                    style={{ background: c.colour, width: 34, height: 34, fontSize: 13 }}
+                    aria-hidden="true"
+                  >
+                    {c.initial}
+                  </span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <b style={{ display: "block", fontSize: 15 }}>
+                      {c.business}
+                      {c.status === "active" && <i className="livedot" />}
+                    </b>
+                    <span className="tiny">
+                      {c.rateLabel || usd(c.rewardPerAction)} per result
+                      {c.escrowCampaignId === null && " · not funded onchain"}
+                    </span>
+                  </div>
+                  {c.status !== "active" && <span className="biz-status">{c.status}</span>}
+                </div>
 
-      {/* The refusals are the product. A business's deepest fear is paying for fraud,
-          and the answer is a list it can verify on the explorer itself. */}
-      <section className="fade-up d4">
-        <div className="sec-head">
-          <span>What the falcon decided</span>
-          <a
-            href={`https://testnet.arcscan.app/address/${process.env.NEXT_PUBLIC_VANE_ESCROW ?? ""}`}
-            target="_blank"
-            rel="noreferrer"
-          >
-            On Arc
-          </a>
-        </div>
-        <AgentDecisions />
-      </section>
+                <div className="poolbar">
+                  <i style={{ width: `${c.budget > 0 ? Math.round((c.spent / c.budget) * 100) : 0}%` }} />
+                </div>
+                <div className="row" style={{ justifyContent: "space-between", marginTop: 8 }}>
+                  <span className="tiny num">
+                    {usd(c.remaining, { cents: false })} left · {c.resultsLeft} more results
+                  </span>
+                  <span className="tiny num">{c.daysLeft}d left</span>
+                </div>
 
+                <div className="biz-camp-stats">
+                  <div>
+                    <b className="num">{c.results}</b>
+                    <span>results</span>
+                  </div>
+                  <div>
+                    <b className="num">{c.promoters}</b>
+                    <span>promoters</span>
+                  </div>
+                  <div>
+                    <b className="num">{c.conversion === null ? "—" : `${c.conversion}%`}</b>
+                    <span>convert</span>
+                  </div>
+                </div>
+
+                <CampaignControls campaignId={c.id} status={c.status} onChanged={load} />
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <div className="biz-side">
+          {/* Who is actually doing the work. A promoter count alone is the least
+              useful form of that number. */}
+          <section className="fade-up d3">
+            <div className="sec-head">
+              <span>Who&rsquo;s promoting you</span>
+            </div>
+            <div className="group">
+              {promoters.length === 0 ? (
+                <div className="grow-row" style={{ display: "block" }}>
+                  <b style={{ display: "block", marginBottom: 4 }}>Nobody yet</b>
+                  <span className="tiny">
+                    Your campaign is in the marketplace. Promoters who take it appear here.
+                  </span>
+                </div>
+              ) : (
+                promoters.map((p) => (
+                  <div key={p.id} className="grow-row">
+                    {p.avatar ? (
+                      <span className="face-ring" style={{ padding: 2 }}>
+                        <img className="face" src={p.avatar} alt="" width={30} height={30} />
+                      </span>
+                    ) : (
+                      <span className="avatar" style={{ width: 30, height: 30, fontSize: 12 }} aria-hidden="true">
+                        {p.name.slice(0, 1).toUpperCase()}
+                      </span>
+                    )}
+                    <div className="body">
+                      <b>{p.name}</b>
+                      <span>
+                        {p.results} result{p.results === 1 ? "" : "s"} {"·"}{" "}
+                        {p.conversion === null ? "no clicks yet" : `${p.conversion}% convert`}
+                      </span>
+                    </div>
+                    <b className="amt num">{usd(p.earned)}</b>
+                  </div>
+                ))
+              )}
+            </div>
+          </section>
+
+          {/* The refusals are the product. A business's deepest fear is paying for
+              fraud, and the answer is a list it can verify on the explorer itself. */}
+          <section className="fade-up d4">
+            <div className="sec-head">
+              <span>What the falcon decided</span>
+            </div>
+            <AgentDecisions />
+          </section>
+        </div>
+      </div>
+
+      <AccountPanel />
       <TabBar />
     </main>
   );

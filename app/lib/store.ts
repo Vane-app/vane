@@ -96,7 +96,9 @@ function toCampaign(r: CampaignRow): Campaign {
     endsAt: r.endsAt,
     kind: r.kind as Campaign["kind"],
     streaming: r.streaming,
-    rateLabel: r.rateLabel ?? undefined,
+    // Postgres returns '' for the empty column, and '' is not nullish — so a
+    // plain ?? kept it and blanked the payout figure on every card.
+    rateLabel: r.rateLabel || undefined,
     status: r.status as Campaign["status"],
     taskType: r.taskType as TaskType,
     industry: r.industry as Industry,
@@ -439,7 +441,10 @@ export async function takesForUser(userId: string): Promise<Take[]> {
 
 /** A business's own campaigns — what its dashboard is allowed to show. */
 export async function campaignsForOwner(userId: string): Promise<Campaign[]> {
-  if (!db) return (await listCampaigns()).filter((c) => c.ownerId === userId);
+  // Every status, not just active: a business must still see a campaign it has
+  // paused or ended. `listCampaigns` is the marketplace view and filters to active,
+  // which would have made a paused campaign disappear from its owner's dashboard.
+  if (!db) return [...mem().campaigns.values()].filter((c) => c.ownerId === userId);
   const rows = await db.select().from(schema.campaigns).where(eq(schema.campaigns.ownerId, userId));
   return rows.map(toCampaign);
 }
