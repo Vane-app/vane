@@ -54,15 +54,56 @@ export default function BusinessOnboarding() {
   const [authError, setAuthError] = useState<string | null>(null);
   const emailValid = /.+@.+\..+/.test(email);
 
-  // Already a tasker? Then we know who they are. Reuse it rather than re-asking.
+  /**
+   * Pick up where the person actually is.
+   *
+   * The step used to live only in component state, so a refresh threw you back to
+   * question one — after you had verified an email and were part way through. And a
+   * signed-in account with a wallet was still shown onboarding, as though it had never
+   * been here.
+   *
+   * So: someone already set up goes to their dashboard, someone signed in but without
+   * a wallet lands on the wallet step, and a refresh mid-flow resumes rather than
+   * restarting.
+   */
   const { me, known } = useMe();
+  const [resolved, setResolved] = useState(false);
+
+  useEffect(() => {
+    const saved = sessionStorage.getItem("vane-join-business") as Step | null;
+    if (saved && ORDER.includes(saved)) setStep(saved);
+    const savedName = sessionStorage.getItem("vane-join-business-name");
+    if (savedName) setName(savedName);
+  }, []);
+
+  useEffect(() => {
+    sessionStorage.setItem("vane-join-business", step);
+  }, [step]);
+
   useEffect(() => {
     if (!me) return;
     setEmail(me.email);
     setSignedIn(true);
     // Their photo is a reasonable default logo; they can replace it a step later.
     setLogo((l) => l || me.avatar);
-  }, [me]);
+
+    if (resolved) return;
+    setResolved(true);
+
+    // Already has a wallet? Then this account is set up, and onboarding is the wrong
+    // screen to be looking at.
+    void fetch("/api/wallet")
+      .then((r) => r.json())
+      .then((w) => {
+        if (w.ready) router.replace("/business");
+        else setStep((cur) => (cur === "name" || cur === "verify" ? "done" : cur));
+      })
+      .catch(() => {});
+  }, [me, resolved, router]);
+
+  useEffect(() => {
+    if (name) sessionStorage.setItem("vane-join-business-name", name);
+  }, [name]);
 
   const idx = ORDER.indexOf(step);
   const web3 = kind === "web3";
@@ -249,7 +290,14 @@ export default function BusinessOnboarding() {
             <WalletStep onDone={() => setWalletReady(true)} />
 
             {walletReady && (
-              <button className="btn btn-amber ob-done-cta" onClick={() => router.push("/post")}>
+              <button
+                className="btn btn-amber ob-done-cta"
+                onClick={() => {
+                  sessionStorage.removeItem("vane-join-business");
+                  sessionStorage.removeItem("vane-join-business-name");
+                  router.push("/post");
+                }}
+              >
                 Post your first campaign
               </button>
             )}

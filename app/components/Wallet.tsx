@@ -29,6 +29,48 @@ interface WalletInfo {
 /** Type-only — erased at build, so the SDK itself still loads lazily in the browser. */
 type CircleSdk = W3SSdk;
 
+/**
+ * Wait for a Circle challenge to finish.
+ *
+ * The callback fires more than once: Circle reports IN_PROGRESS and PENDING while the
+ * user is still working through the modal, and only later COMPLETE. Treating anything
+ * other than COMPLETE as a failure — which is what this used to do — killed the flow
+ * the instant Circle reported progress and told the user they had cancelled, while the
+ * modal was still open in front of them.
+ *
+ * So: settle only on a terminal state, ignore the rest, and never settle twice.
+ */
+function runChallenge(sdk: CircleSdk, challengeId: string, what: string): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    let settled = false;
+    const finish = (fn: () => void) => {
+      if (settled) return;
+      settled = true;
+      fn();
+    };
+
+    sdk.execute(challengeId, (err, result) => {
+      if (err) return finish(() => reject(new Error(err.message ?? `${what} could not be completed.`)));
+
+      const status = (result as { status?: string } | undefined)?.status;
+      if (status === "COMPLETE") return finish(resolve);
+      if (status === "EXPIRED") return finish(() => reject(new Error(`${what} timed out — try again.`)));
+      if (status === "FAILED") return finish(() => reject(new Error(`${what} failed. Check your PIN and try again.`)));
+
+      // IN_PROGRESS, PENDING, or a status we do not recognise: the user is still
+      // going. Say nothing and wait for a terminal one.
+    });
+
+    /**
+     * Closing the modal does not always produce a terminal status, so waiting on the
+     * callback alone can hang with the button spinning. Give it a generous window,
+     * then stop waiting — the caller re-reads the wallet from Circle afterwards, which
+     * is the real source of truth about whether this worked.
+     */
+    setTimeout(() => finish(resolve), 5 * 60 * 1000);
+  });
+}
+
 export function useWallet() {
   const [status, setStatus] = useState<Status>("idle");
   const [address, setAddress] = useState<string | null>(null);
@@ -208,17 +250,13 @@ export function useWallet() {
       const instance = await sdk(data.appId);
       instance.setAuthentication({ userToken: data.userToken, encryptionKey: data.encryptionKey });
 
-      await new Promise<void>((resolve, reject) => {
-        instance.execute(data.challengeId, (err, result) => {
-          if (err) return reject(new Error(err.message ?? "Wallet setup was not completed."));
-          if (result?.status !== "COMPLETE") {
-            return reject(new Error("Wallet setup was cancelled."));
-          }
-          resolve();
-        });
-      });
+      await runChallenge(instance, data.challengeId, "Wallet setup");
 
-      await refresh();
+      // Circle is the authority on whether the wallet exists, not the callback.
+      const after = await refresh();
+      if (after && after.configured && !after.ready) {
+        throw new Error("Wallet setup didn't complete. You can try again.");
+      }
     } catch (err) {
       setError((err as Error).message);
       setStatus("error");
@@ -233,13 +271,7 @@ export function useWallet() {
         userToken: challenge.userToken,
         encryptionKey: challenge.encryptionKey,
       });
-      return new Promise<void>((resolve, reject) => {
-        instance.execute(challenge.challengeId, (err, result) => {
-          if (err) return reject(new Error(err.message ?? "Approval failed."));
-          if (result?.status !== "COMPLETE") return reject(new Error("You cancelled the approval."));
-          resolve();
-        });
-      });
+      return runChallenge(instance, challenge.challengeId, "Approval");
     },
     [sdk],
   );

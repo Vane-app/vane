@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import { Mark } from "../../components/Falcon";
 import { Back } from "../../components/Back";
 import { EmailStep } from "../../components/EmailStep";
@@ -19,7 +20,18 @@ import { EmailStep } from "../../components/EmailStep";
  * "wrong password".
  */
 export default function Login() {
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
+  );
+}
+
+function LoginForm() {
   const router = useRouter();
+  // Where they were headed before being asked to sign in, so signing in returns them
+  // there rather than dumping them on a generic landing page.
+  const next = useSearchParams().get("next");
 
   return (
     <main className="startpage">
@@ -44,6 +56,7 @@ export default function Login() {
             // A brand-new address arriving at the login door still owes us onboarding;
             // sending them to a half-empty dashboard would be the wrong welcome.
             if (isNew) router.push("/start");
+            else if (next && next.startsWith("/")) router.push(next);
             else router.push(user.role === "business" ? "/business" : "/earnings");
           }}
         />

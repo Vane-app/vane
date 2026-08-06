@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { Mark } from "./Falcon";
 import { useMode, type Mode } from "./Mode";
 import { useMe, hasSide } from "./Me";
@@ -51,13 +52,68 @@ const HOME: Record<Mode, string> = { earning: "/tasks", advertising: "/business"
 /** Full-window routes with no app chrome: marketing, onboarding, the preview. */
 const BARE = ["/", "/preview", "/start", "/login", "/join/tasker", "/join/business"];
 
+/**
+ * Who may see what.
+ *
+ * Every page rendered for anyone. The APIs returned 401 without a session, but the
+ * screens themselves did not care — a stranger could open the business dashboard, the
+ * post form or someone's earnings and get the whole app, empty but complete. Nothing
+ * knew who was looking.
+ *
+ * A marketplace has to be browsable before you join, so discovery stays open: the
+ * campaign feed, a campaign, a business's public profile. Everything that is *yours* —
+ * your money, your links, your campaigns, the form that spends your budget — needs a
+ * session, and the business side needs to actually be a business.
+ */
+const PUBLIC_PREFIXES = ["/tasks", "/campaign/", "/business/"];
+const BUSINESS_ONLY = ["/business", "/post"];
+
+function isPublic(pathname: string): boolean {
+  if (pathname === "/business") return false; // the dashboard, not a public profile
+  return PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(p));
+}
+
 export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { mode, setMode } = useMode();
-  const { me } = useMe();
+  const { me, loading } = useMe();
+
+  /**
+   * Send people where they belong, once we know who they are.
+   *
+   * Deliberately after the loading check: redirecting before /api/me answers would
+   * bounce a signed-in person to the login screen on every hard refresh, which is
+   * worse than the hole it closes.
+   */
+  useEffect(() => {
+    if (loading || BARE.includes(pathname) || isPublic(pathname)) return;
+
+    if (!me) {
+      router.replace(`/login?next=${encodeURIComponent(pathname)}`);
+      return;
+    }
+
+    const needsBusiness = BUSINESS_ONLY.some((p) => pathname === p || pathname.startsWith(p + "/"));
+    if (needsBusiness && !hasSide(me, "business")) {
+      router.replace("/join/business");
+    }
+  }, [loading, me, pathname, router]);
 
   if (BARE.includes(pathname)) return <>{children}</>;
+
+  // Hold the frame rather than flashing a dashboard at someone who is about to be
+  // redirected away from it.
+  const gated = !isPublic(pathname) && (loading || !me);
+  if (gated) {
+    return (
+      <div className="app">
+        <main className="canvas">
+          <p className="sub" style={{ padding: 40 }}>{loading ? "" : "Taking you to sign in…"}</p>
+        </main>
+      </div>
+    );
+  }
 
   const nav = NAV[mode];
 

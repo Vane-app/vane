@@ -241,6 +241,31 @@ await check("Domain verification refuses what it cannot prove", "the badge means
   return "claim ok, proof refused";
 });
 
+await check("Private pages need a session", "a stranger cannot open the app", async () => {
+  for (const path of ["/business", "/post", "/earnings", "/campaigns"]) {
+    const res = await fetch(`${BASE}${path}`, { redirect: "manual" });
+    assert(res.status === 307 || res.status === 302, `${path} served ${res.status} to nobody`);
+  }
+  return "redirected to sign in";
+});
+
+await check("A forged session is rejected", "the cookie signature is checked", async () => {
+  const res = await fetch(`${BASE}/business`, {
+    headers: { cookie: "vane_session=someone-elses-id.notarealsignature" },
+    redirect: "manual",
+  });
+  assert(res.status === 307 || res.status === 302, `a forged cookie got ${res.status}`);
+  return "refused";
+});
+
+await check("Discovery stays public", "a marketplace is browsable before joining", async () => {
+  for (const path of ["/", "/tasks", "/login"]) {
+    const res = await fetch(`${BASE}${path}`, { redirect: "manual" });
+    assert(res.status === 200, `${path} returned ${res.status}`);
+  }
+  return "open";
+});
+
 await check("Earnings start empty", "no fabricated balances", async () => {
   const d = await (await biz.fetch("/api/earnings")).json();
   assert(d.available === 0 && d.results === 0, `a new account has ${d.available} earned`);
