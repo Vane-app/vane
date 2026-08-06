@@ -35,7 +35,7 @@ export default function BusinessOnboarding() {
 
   const [step, setStep] = useState<Step>("name");
   const [name, setName] = useState("");
-  const [kind, setKind] = useState<"web2" | "web3">("web2");
+  const [kind, setKind] = useState<"web2" | "web3">("web3");
   const [logo, setLogo] = useState("");
   const [industry, setIndustry] = useState<Industry>("Payments");
   const [funded, setFunded] = useState(500);
@@ -154,14 +154,20 @@ export default function BusinessOnboarding() {
             <p className="eyebrow" style={{ marginBottom: 10 }}>
               How do your results happen?
             </p>
+            {/* Only on-chain verification is built. Offering the other as a live choice
+                meant a business could select it, get identical behaviour, and see its own
+                card contradict what it had just said. It stays visible because it is
+                genuinely next — but it cannot be chosen until it works. */}
             <div className="ob-kind">
-              <button type="button" className={`ob-kindbtn ${!web3 ? "on" : ""}`} onClick={() => setKind("web2")}>
-                <b>A web business</b>
-                <span>Signups, sales and subscriptions in your own app</span>
-              </button>
               <button type="button" className={`ob-kindbtn ${web3 ? "on" : ""}`} onClick={() => setKind("web3")}>
                 <b>An onchain business</b>
-                <span>Mints, swaps, deposits and trades onchain</span>
+                <span>Mints, swaps, deposits and trades onchain — verified against the chain itself</span>
+              </button>
+              <button type="button" className="ob-kindbtn is-soon" disabled aria-disabled="true">
+                <b>
+                  A web business <i className="ob-soon">Coming soon</i>
+                </b>
+                <span>Signups and sales in your own app, reported through an integration</span>
               </button>
             </div>
 

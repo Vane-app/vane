@@ -1,53 +1,70 @@
 import { NextResponse } from "next/server";
-import { findTakeByCode, creditResult, getCampaign, earningsFor } from "../../../lib/store";
-import { decide, type ConversionSignals } from "../../../lib/agent";
+import { createHmac, timingSafeEqual } from "node:crypto";
+import { findTakeByCode, creditResult, getCampaign } from "../../../lib/store";
 
 /**
- * POST /api/conversion — a claimed result arrives.
+ * POST /api/conversion — a web2 business reports a result.
  *
- * This is the heart of the loop. For a web2 business it's a signed webhook from
- * their integration; for a web3 business the chain listener calls it with the tx
- * as evidence. The falcon scores it, and honest results are credited (and, in
- * the full flow, settled onchain from escrow); fraud is refused with a reason.
+ * This was open. No authentication of any kind, and it credited a payout. Referral
+ * codes are public by design — they are the shareable part of the link — so anyone
+ * who saw one could post it here repeatedly and credit themselves. On a marketplace
+ * that pays per result, that is free money.
  *
- * Body: { refCode, wallet?, signals? }  — signals optional; sensible defaults
- * model a genuine conversion so the happy path is demonstrable.
+ * It is now a signed webhook, which is what a real integration would be anyway. The
+ * business holds a shared secret and signs the raw body; without VANE_WEBHOOK_SECRET
+ * set the route refuses everything rather than falling open.
+ *
+ * A note on what this path is and is not. On-chain conversions do not come through
+ * here — the falcon watches `ConversionRecorded` on Arc directly, which is the
+ * trustless route and the one the product demos. This is Tier 2: a business's own
+ * claim about its own users, which is *protected* rather than trustless. The signature
+ * proves the claim came from the business, not that the result happened.
+ *
+ * It also no longer decides anything. There was a second, simplified copy of the
+ * decision engine in lib/agent.ts scoring these inline, so the same claimed result
+ * could be judged one way here and another way by the real engine. One engine
+ * (agent/src/decision.ts), one verdict.
  */
 export async function POST(req: Request) {
-  const b = await req.json().catch(() => ({}));
-  const refCode = String(b.refCode ?? "");
+  const secret = process.env.VANE_WEBHOOK_SECRET;
+  if (!secret) {
+    return NextResponse.json(
+      { error: "Conversion reporting is not enabled on this deployment." },
+      { status: 503 },
+    );
+  }
+
+  // Read the raw body: the signature covers the exact bytes sent, and re-serialising
+  // parsed JSON would not reproduce them.
+  const raw = await req.text();
+  const provided = req.headers.get("x-vane-signature") ?? "";
+  const expected = createHmac("sha256", secret).update(raw).digest("hex");
+
+  const a = Buffer.from(provided);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length || !timingSafeEqual(a, b)) {
+    return NextResponse.json({ error: "Bad signature." }, { status: 401 });
+  }
+
+  const body = JSON.parse(raw || "{}") as { refCode?: string };
+  const refCode = String(body.refCode ?? "");
   const take = await findTakeByCode(refCode);
   if (!take) return NextResponse.json({ error: "Unknown referral code." }, { status: 404 });
 
   const campaign = await getCampaign(take.campaignId);
   if (!campaign) return NextResponse.json({ error: "Campaign not found." }, { status: 404 });
-
-  const e = await earningsFor(take.userId);
-  const attempts = take.results;
-  const approvalRate = attempts > 0 ? 1 : 0.85; // clean record so far, or neutral for a newcomer
-
-  const signals: ConversionSignals = {
-    timeToConvert: Number(b.signals?.timeToConvert ?? 600),
-    walletTxCount: Number(b.signals?.walletTxCount ?? 12),
-    activityAfter: Number(b.signals?.activityAfter ?? 3),
-    velocity: Number(b.signals?.velocity ?? take.results + 1),
-    approvalRate,
-    funderConcentration: Number(b.signals?.funderConcentration ?? 1),
-    ...(b.signals ?? {}),
-  };
-
-  const decision = decide(signals);
-
-  if (decision.verdict === "settled") {
-    await creditResult(refCode, campaign.rewardPerAction);
+  if (campaign.status !== "active") {
+    return NextResponse.json({ error: "That campaign is not running." }, { status: 409 });
+  }
+  if (campaign.spent + campaign.rewardPerAction > campaign.budget) {
+    return NextResponse.json({ error: "Campaign budget is spent." }, { status: 409 });
   }
 
-  const after = await earningsFor(take.userId);
+  await creditResult(refCode, campaign.rewardPerAction);
+
   return NextResponse.json({
-    decision,
-    reward: decision.verdict === "settled" ? campaign.rewardPerAction : 0,
-    balance: after.available,
-    business: campaign.business,
-    kind: campaign.web3 ? "onchain" : "integration",
+    accepted: true,
+    // Deliberately not "settled". Nothing has moved on-chain; the falcon settles.
+    note: "Recorded. The agent verifies it before any payout is released.",
   });
 }

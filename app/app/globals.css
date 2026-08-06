@@ -4720,3 +4720,37 @@ body {
   color: var(--ink);
   background: rgba(255, 255, 255, 0.09);
 }
+
+/* A choice that is on the roadmap but not yet real. Visible so the direction is
+   legible; unselectable so nobody can pick something that does nothing. */
+.ob-kindbtn.is-soon {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ob-kindbtn.is-soon:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.ob-soon {
+  font-style: normal;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--amber);
+  background: var(--amber-glow);
+  padding: 3px 7px;
+  border-radius: 999px;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+.post-type.is-soon {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.post-type.is-soon:hover {
+  background: rgba(255, 255, 255, 0.05);
+}

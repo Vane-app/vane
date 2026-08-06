@@ -71,11 +71,23 @@ export interface Campaign {
   taken: number;
 }
 
-export const TASK_TYPES: { id: TaskType; label: string; verb: string }[] = [
-  { id: "referral", label: "Referral", verb: "Refer users" },
-  { id: "content", label: "Content", verb: "Post content" },
-  { id: "onchain", label: "Onchain action", verb: "Drive onchain actions" },
-  { id: "bounty", label: "Bounty", verb: "Deliver a task" },
+/**
+ * What a campaign can pay for.
+ *
+ * `live` marks the ones the falcon can actually verify today. Referral and onchain
+ * action share one mechanism — a referred wallet performs an action on the business's
+ * contract, sealed beforehand and read from the chain — which is why both work.
+ *
+ * Content needs a platform API to confirm a post exists and meets a brief; bounty
+ * needs approval with a staked dispute window. Neither is built, and a business
+ * choosing one would fund a campaign that could never pay out. They stay listed
+ * because they are the roadmap, and disabled because they are not the product.
+ */
+export const TASK_TYPES: { id: TaskType; label: string; verb: string; live: boolean }[] = [
+  { id: "referral", label: "Referral", verb: "Refer users", live: true },
+  { id: "onchain", label: "Onchain action", verb: "Drive onchain actions", live: true },
+  { id: "content", label: "Content", verb: "Post content", live: false },
+  { id: "bounty", label: "Bounty", verb: "Deliver a task", live: false },
 ];
 
 export const EFFORT_LABEL: Record<Effort, string> = {

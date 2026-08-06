@@ -166,8 +166,18 @@ export default function PostCampaign() {
           <Field label="What do you want people to do?">
             <div className="post-types">
               {TASK_TYPES.map((t) => (
-                <button key={t.id} className={`post-type ${type === t.id ? "on" : ""}`} onClick={() => setType(t.id)}>
-                  <b>{t.label}</b>
+                <button
+                  key={t.id}
+                  type="button"
+                  className={`post-type ${type === t.id ? "on" : ""} ${t.live ? "" : "is-soon"}`}
+                  onClick={() => t.live && setType(t.id)}
+                  disabled={!t.live}
+                  aria-disabled={!t.live}
+                >
+                  <b>
+                    {t.label}
+                    {!t.live && <i className="ob-soon">Soon</i>}
+                  </b>
                   <span>{t.verb}</span>
                 </button>
               ))}
