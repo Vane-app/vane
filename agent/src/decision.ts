@@ -28,6 +28,21 @@ export interface ConversionClaim {
   observedAt: number;
 }
 
+/**
+ * What Circle's Compliance Engine says about an address.
+ *
+ * Passed in rather than fetched here, so `evaluate` stays pure, synchronous and
+ * runnable with no network — the offline demo and any test can construct this by hand.
+ */
+export interface ComplianceSignal {
+  result: "APPROVED" | "DENIED" | "UNAVAILABLE";
+  /** SANCTIONS, TERRORIST_FINANCING, CSAM, ILLICIT_BEHAVIOR, GAMBLING … */
+  categories: string[];
+  /** True for the categories money must never move to, whatever else is true. */
+  prohibited: boolean;
+  summary: string;
+}
+
 export interface WalletSignals {
   /** When this wallet was sealed to a referral code, seconds. */
   sealedAt: number;
@@ -41,6 +56,13 @@ export interface WalletSignals {
   usdcBalance: bigint;
   /** Address that first funded this wallet, if known. */
   fundedBy?: `0x${string}`;
+  /**
+   * Circle Compliance Engine's verdict on this wallet.
+   *
+   * Absent means nobody asked. Present-but-UNAVAILABLE means we asked and could not
+   * find out — which is recorded, never silently treated as clean.
+   */
+  compliance?: ComplianceSignal;
 }
 
 export interface TaskerSignals {
@@ -95,6 +117,43 @@ export function evaluate(
 ): Decision {
   const signals: string[] = [];
   let risk = 0;
+
+  // --- 0. Is this address one we are allowed to pay at all? ----------------
+  //
+  // This runs before everything else and does not score, it gates. A behavioural
+  // signal is evidence and gets weighed against other evidence; a sanctions match is
+  // a prohibition. No amount of genuine-looking activity makes it payable, so there
+  // is nothing to weigh and blending it into a risk score would be wrong.
+  const compliance = wallet.compliance;
+  if (compliance?.prohibited) {
+    return {
+      verdict: "hold",
+      risk: 100,
+      reason: `Held — ${compliance.summary}`,
+      signals: [`compliance: ${compliance.categories.join(", ").toLowerCase() || "prohibited match"}`],
+    };
+  }
+  if (compliance?.result === "DENIED") {
+    return {
+      verdict: "hold",
+      risk: 100,
+      reason: `Held — ${compliance.summary}`,
+      signals: [`compliance: denied by screening`],
+    };
+  }
+
+  // Everything below is scored. Flags that are not prohibitions are evidence like any
+  // other — a gambling-linked funding source is worth noticing, not worth refusing on.
+  if (compliance?.categories.length) {
+    risk += 20;
+    signals.push(`compliance flags: ${compliance.categories.join(", ").toLowerCase()}`);
+  } else if (compliance?.result === "APPROVED") {
+    signals.push("address cleared compliance screening");
+  } else if (compliance?.result === "UNAVAILABLE") {
+    // Recorded rather than assumed. Not being able to check is not the same as clean,
+    // and a business reading this log deserves to know which one happened.
+    signals.push("compliance screening unavailable — not verified");
+  }
 
   // --- 1. Was the conversion humanly possible? -----------------------------
   const timeToConvert = claim.observedAt - wallet.sealedAt;

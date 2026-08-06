@@ -132,7 +132,36 @@ scenario(
 );
 
 // 4 — the pattern only visible across a batch
-console.log(`${BOLD}4. Cluster detection${RESET}`);
+// 4 — the one the falcon's own heuristics could never catch
+scenario(
+  "4. A sanctioned address",
+  "Everything about this looks like a real customer. Circle's screening says otherwise.",
+  {
+    campaignId: 1n,
+    wallet: "0x5A17C70000000000000000000000000000000001" as `0x${string}`,
+    actionIndex: 4n,
+    kind: "signup",
+    observedAt: NOW - 7200,
+  },
+  {
+    // Deliberately a perfect behavioural profile: aged wallet, real history, came
+    // back afterwards. Every heuristic in the engine says pay this.
+    sealedAt: NOW - 9000,
+    firstSeenAt: NOW - 86400 * 400,
+    txCount: 310,
+    txCountAfterConversion: 12,
+    usdcBalance: 900_000_000n,
+    compliance: {
+      result: "DENIED",
+      categories: ["SANCTIONS"],
+      prohibited: true,
+      summary: "Address denied by compliance screening: sanctions.",
+    },
+  },
+  honestTasker,
+);
+
+console.log(`${BOLD}5. Cluster detection${RESET}`);
 console.log(`${DIM}Individually unremarkable wallets. The pattern is the evidence.${RESET}\n`);
 const cluster = detectCluster([
   { wallet: "0x01" as `0x${string}`, sealedAt: NOW - 5000 },

@@ -5,6 +5,7 @@ import { registryAbi } from "./abi.js";
 import { evaluate, detectCluster, type ConversionClaim } from "./decision.js";
 import { walletSignals, taskerSignals, sealsForTasker } from "./signals.js";
 import { executeContract, waitForTransaction } from "./circle/wallets.js";
+import { screenAddress } from "./circle/compliance.js";
 
 /**
  * Vane — the falcon.
@@ -53,6 +54,15 @@ export async function judge(
   const h = historyFor(tasker);
 
   const wallet = await walletSignals(claim.campaignId, claim.wallet, blockNumber);
+
+  /**
+   * Ask Circle whether this address is one we may pay at all.
+   *
+   * The engine's own signals are behavioural — they can tell a farm from an audience,
+   * but they cannot know an address is sanctioned. That is a registry fact, not a
+   * pattern, and it is the half of "should this be paid" we could never compute.
+   */
+  wallet.compliance = await screenAddress(claim.wallet);
 
   const seals = await sealsForTasker(claim.campaignId, tasker).catch(() => []);
   h.referred = seals.length;

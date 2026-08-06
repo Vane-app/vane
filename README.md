@@ -80,6 +80,7 @@ npm run agent
 | **Circle Wallets** (user-controlled) | Taskers and businesses. Non-custodial MPC — Vane cannot move their funds. PIN or social login at signup, no seed phrases, ever. |
 | **Circle Wallets** (developer-controlled) | The falcon's own operating wallet only. It must act autonomously, and it holds no user money. |
 | **Circle Smart Contract Platform** | Deploys and reads the vault and registry. No private key on disk. |
+| **Circle Compliance Engine** | Address screening inside the falcon's judgement. Answers the half our own engine cannot: heuristics tell a farm from an audience, but only a registry knows an address is sanctioned. A prohibited match is a gate, not a score — no amount of genuine-looking behaviour makes it payable. Live on `ARC-TESTNET`. |
 | **Circle Paymaster** | *Not used.* User wallets are `EOA`, chosen so Gateway/Nanopayments stays open; Paymaster sponsorship needs `SCA`. A deliberate trade, not an oversight. |
 | **Circle Nanopayments** (Gateway) | Gas-free USDC down to $0.000001 via x402 + EIP-3009, batched offchain. Arc Testnet supported, and user-controlled wallets are `EOA` specifically so this stays open. *Spec'd in `ROUTE.md` §7b, not yet built.* |
 | **`settleBatch`** | Our own on-chain batching in `VaneEscrow.sol`. Not a Circle product — many escrow payouts amortised into one transaction. Proven: 12 sub-cent payouts, one transaction. |
@@ -116,6 +117,9 @@ Being precise about this matters more than claiming more than we can prove.
 - funding concentration across a tasker's referred wallets
 - the tasker's own settled/held record
 - cluster detection across a batch — the pattern is evidence no single wallet reveals
+- **Circle Compliance Engine screening** — sanctions and illicit-activity risk on the converting address
+
+The last one is different in kind from the rest, and treated differently. Everything above it is behavioural: evidence about whether a result is genuine, weighed against other evidence. A sanctions match is not evidence, it is a prohibition — so it gates rather than scores, and no amount of genuine-looking history makes the payout allowed. Screening being unavailable is recorded as unavailable, never as clean.
 
 Deterministic checks decide the overwhelming majority of cases, which keeps cost and latency flat as volume grows. Every rule returns one sentence a business would understand; a rule that cannot explain itself does not ship.
 
