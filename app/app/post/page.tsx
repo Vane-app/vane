@@ -5,6 +5,7 @@ import { useState } from "react";
 import { AppBar, TabBar } from "../../components/AppChrome";
 import { Upload } from "../../components/Upload";
 import { useWallet } from "../../components/Wallet";
+import { useProfile } from "../../components/Profile";
 import { Back } from "../../components/Back";
 import { TASK_TYPES, usd, FEE_BPS, type TaskType } from "../../lib/data";
 
@@ -25,6 +26,10 @@ const KIND_RESULT: Record<TaskType, string> = {
 };
 
 export default function PostCampaign() {
+  // Whether this business's results happen onchain was asked at signup and then
+  // discarded — every campaign was tagged "Integration" regardless, so a business
+  // that said "onchain" saw its own card contradict it.
+  const { profile } = useProfile();
   const [type, setType] = useState<TaskType>("referral");
   const [banner, setBanner] = useState("");
   const [result, setResult] = useState("");
@@ -53,6 +58,10 @@ export default function PostCampaign() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           taskType: type,
+          kind: profile.business?.kind ?? "web3",
+          industry: profile.business?.industry,
+          business: profile.business?.name,
+          logoUrl: profile.business?.logo,
           rewardPerAction: Math.round(rate * 1_000_000),
           budget: Math.round(budget * 1_000_000),
           blurb: result,
