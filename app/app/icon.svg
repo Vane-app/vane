@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
+  <!-- The browser tab. This was Next's scaffolded favicon.ico — the Vercel triangle —
+       which every visitor read as "unfinished deployment" before the page had loaded.
+       A tile rather than a bare glyph: at 16px an outline on a transparent ground
+       disappears into whichever tab colour the browser happens to be using. -->
+  <rect width="48" height="48" rx="11" fill="#0a1218"/>
+  <path
+    fill-rule="evenodd"
+    fill="#f0a94b"
+    transform="translate(7.2 6.8) scale(0.7)"
+    d="M24 46 L6 7 C13 14.5 18.5 17 24 16 C29.5 17 35 14.5 42 7 Z M24 38 L15.5 19 C18.5 21.3 21.2 22.2 24 21.8 C26.8 22.2 29.5 21.3 32.5 19 Z"
+  />
+</svg>

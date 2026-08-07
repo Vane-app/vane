@@ -35,6 +35,24 @@ function need(key: string, v: string | undefined): string {
   return v;
 }
 
+/**
+ * Marks drawn inline rather than fetched.
+ *
+ * A campaign row carries a logoUrl and these had none, so the marketplace showed two
+ * bare letters where every other card shows a brand. Data URIs because a real business
+ * uploads its own logo and these two have nobody to upload one — an external image
+ * would be one more thing to go down in front of a judge.
+ */
+const mark = (svg: string) =>
+  "data:image/svg+xml," + encodeURIComponent(svg.replace(/\s+/g, " ").trim());
+
+const NOVA_MARK = mark(
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><rect width="48" height="48" fill="#c2703f"/><path fill="#fff" d="M24 7 L27.4 20.6 L41 24 L27.4 27.4 L24 41 L20.6 27.4 L7 24 L20.6 20.6 Z"/></svg>`,
+);
+const HARBOUR_MARK = mark(
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><rect width="48" height="48" fill="#7d5bb0"/><g fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"><circle cx="24" cy="12.5" r="3.6"/><path d="M24 16.5 V38.5"/><path d="M16.5 21.5 H31.5"/><path d="M11.5 28.5 a12.5 12.5 0 0 0 25 0"/></g></svg>`,
+);
+
 /** Small, real, and varied enough to show the shapes a campaign can take. */
 const CAMPAIGNS = [
   {
@@ -42,6 +60,7 @@ const CAMPAIGNS = [
     blurb: "Someone you refer connects a wallet and makes their first swap",
     industry: "Trading",
     colour: "#c2703f",
+    logo: NOVA_MARK,
     rewardPerAction: 500_000, // $0.50
     budget: 4_000_000, // $4 — eight results
     effort: "quick",
@@ -51,6 +70,7 @@ const CAMPAIGNS = [
     blurb: "A referred wallet makes its first deposit of any size",
     industry: "Banking",
     colour: "#7d5bb0",
+    logo: HARBOUR_MARK,
     rewardPerAction: 750_000, // $0.75
     budget: 3_000_000, // $3 — four results
     effort: "medium",
@@ -139,6 +159,7 @@ async function main() {
         blurb: c.blurb,
         initial: c.business[0],
         colour: c.colour,
+        logoUrl: c.logo,
         web3: true,
         kind: "signup",
         taskType: "referral",
