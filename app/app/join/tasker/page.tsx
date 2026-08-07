@@ -256,24 +256,33 @@ export default function TaskerOnboarding() {
       )}
 
       {step === "socials" && (
+        /**
+         * Not connected, and no longer pretending to be.
+         *
+         * These buttons toggled to "Connected ✓" and did nothing — no OAuth, no
+         * account, nothing stored. Someone finished onboarding believing Vane could
+         * verify their posts, and the first content campaign would have found no
+         * channel and no way to check one. An unfinished feature costs nothing to
+         * admit; a false claim about what has been verified costs the thing the whole
+         * product sells.
+         */
         <Panel
-          title="Connect a channel?"
-          sub="Optional. Only needed later if you take a content campaign that verifies posts. Referral and onchain campaigns never need it."
+          title="Content campaigns are coming"
+          sub="Every campaign live today pays on onchain evidence — a referred wallet doing something real — and needs no channel at all. Linking X or YouTube matters only for campaigns that verify posts, which are not open yet."
         >
           <div className="stack" style={{ gap: 10 }}>
-            {["X / Twitter", "YouTube"].map((s) => (
-              <button
-                key={s}
-                className={`ob-social ${socials.includes(s) ? "on" : ""}`}
-                onClick={() => toggle(socials, s, setSocials)}
-              >
-                <span>{s}</span>
-                <b>{socials.includes(s) ? "Connected ✓" : "Connect"}</b>
-              </button>
+            {["X / Twitter", "YouTube"].map((sName) => (
+              <div key={sName} className="ob-social" style={{ opacity: 0.5, cursor: "default" }}>
+                <span>{sName}</span>
+                <b className="tiny">Soon</b>
+              </div>
             ))}
           </div>
-          <button className="btn btn-amber" onClick={next} style={{ marginTop: 22 }}>
-            {socials.length ? "Continue" : "Skip for now"}
+          <p className="tiny" style={{ marginTop: 14 }}>
+            Nothing to do here yet. You can start earning without it.
+          </p>
+          <button className="btn btn-amber" onClick={next} style={{ marginTop: 18 }}>
+            Continue
           </button>
         </Panel>
       )}

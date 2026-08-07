@@ -184,13 +184,18 @@ export async function loadCircleSdk(appId: string): Promise<W3SSdk> {
     });
 
     /**
-     * Shorter recovery questions than Circle's defaults.
+     * Shorter recovery questions than Circle's defaults, and only one of them.
      *
-     * This step is the tallest in the flow — two questions, each with an answer and a
-     * hint — and Circle's own wording wraps onto several lines, which pushes the modal
-     * into a scrollbar. We cannot resize their iframe, but we can give it less to say.
-     * Kept to two questions: one is materially weaker recovery, and this is the only
-     * way back into a wallet Vane cannot restore for them.
+     * This is the tallest step in the flow and it was asking for two: two dropdowns,
+     * two answers, two hints. Circle keeps Continue disabled until every field is
+     * filled, and on a phone the last ones sit well below the fold — so the button
+     * read as broken to anyone who had answered everything they could see. It was the
+     * last step before a working wallet, which makes it the worst possible place to
+     * strand somebody.
+     *
+     * One question is materially weaker recovery, and I would rather have two. But a
+     * recovery step that cannot be completed on a phone protects nothing at all, and
+     * this is the only way back into a wallet Vane cannot restore for them.
      */
     instance.setCustomSecurityQuestions(
       [
@@ -200,7 +205,7 @@ export async function loadCircleSdk(appId: string): Promise<W3SSdk> {
         { question: "What is your mother's maiden name?", type: "TEXT" as never },
         { question: "What was your first job?", type: "TEXT" as never },
       ],
-      2,
+      1,
     );
 
     // Without this, execute() fails silently — an expensive thing to debug.
