@@ -307,6 +307,26 @@ input {
   pointer-events: none;
 }
 
+/* On a narrow screen the photograph is proportionally enormous — 118vw wide and half
+   again as tall — so pulling it up by half the viewport put the phone's own screen
+   directly behind the fee line, and "businesses pay 2.5% on settled results" was read
+   against a list of campaigns. The mask keeps the middle of the image fully opaque,
+   so there was nothing to soften the collision.
+
+   The copy still sits on the photograph here; it just meets the soft edge instead of
+   the subject. */
+@media (max-width: 860px) {
+  .hp-shot {
+    margin-top: clamp(-210px, -20vh, -110px);
+  }
+
+  .hp-feeline {
+    /* The last line before the image, so it is the one that collides. Give it room of
+       its own rather than trusting the overlap to stay tasteful at every height. */
+    margin-top: 26px;
+  }
+}
+
 .hp-shot::before {
   content: "";
   position: absolute;
