@@ -44,6 +44,10 @@
     "./pass": {
       "types": "./dist/pass.d.ts",
       "default": "./dist/pass.js"
+    },
+    "./wallets": {
+      "types": "./dist/circle/wallets.d.ts",
+      "default": "./dist/circle/wallets.js"
     }
   }
 }

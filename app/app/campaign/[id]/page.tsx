@@ -7,6 +7,7 @@ import { AppBar, TabBar } from "../../../components/AppChrome";
 import { Logo } from "../../../components/Logo";
 import { Mark } from "../../../components/Falcon";
 import { useWallet } from "../../../components/Wallet";
+import { ConvertPanel } from "../../../components/ConvertPanel";
 import {
   campaigns,
   moreCampaigns,
@@ -147,6 +148,10 @@ export default function CampaignPage() {
       <div className="detail">
         {/* ------------------------------------------------ the case for it */}
         <div className="detail-main">
+          {/* Someone who followed a promoter's link is here to do the thing, not to
+              read about the campaign. It renders nothing without a ref. */}
+          <ConvertPanel campaignId={c.id} business={c.business} rewardPerAction={c.rewardPerAction} />
+
           <header className="fade-up" style={{ marginBottom: 26 }}>
             <div className="row" style={{ gap: 13, marginBottom: 16 }}>
               <Logo src={c.logoUrl} initial={c.initial} colour={c.colour} size={46} />
