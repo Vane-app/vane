@@ -327,11 +327,13 @@ input {
       dollar figures, and pulling back far enough to fix that detached the image
       entirely so it read as a picture dragged in underneath.
 
-      -55vw is about 35% down the image on any screen. The mask is transparent above
+      -62vw is about 39% down the image on any screen. The mask is transparent above
       16% and only turns solid past 47%, so the copy lands on the glow and the phone's
-      top edge — overlapping, as intended, without ever touching the subject.
+      top edge — overlapping, as intended, without ever touching the subject. The
+      remaining eight points are the whole safety margin: past 47% the text would be
+      over the phone's screen again, and no amount of tightening is worth that.
     */
-    margin-top: -55vw;
+    margin-top: -62vw;
   }
 
   .hp-feeline {
