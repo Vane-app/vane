@@ -109,7 +109,7 @@ await check("An email alone cannot sign you in", "the impersonation hole is clos
   const res = await s.fetch("/api/auth", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email: `probe-${stamp}@vane.test` }),
+    body: JSON.stringify({ email: `probe-${stamp}@demo.vane` }),
   });
   const d = await res.json();
   assert(!d.user, "an email alone returned a session");
@@ -123,19 +123,19 @@ await check("A wrong code is refused", "codes are actually checked", async () =>
   await s.fetch("/api/auth", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email: `wrong-${stamp}@vane.test` }),
+    body: JSON.stringify({ email: `wrong-${stamp}@demo.vane` }),
   });
   const res = await s.fetch("/api/auth", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email: `wrong-${stamp}@vane.test`, code: "000000" }),
+    body: JSON.stringify({ email: `wrong-${stamp}@demo.vane`, code: "000000" }),
   });
   assert(res.status === 401, `expected 401, got ${res.status}`);
   return "rejected";
 });
 
 await check("Signing up and signing in", "the code flow works end to end", async () => {
-  const user = await signIn(biz, `biz-${stamp}@vane.test`, "business");
+  const user = await signIn(biz, `biz-${stamp}@demo.vane`, "business");
   assert(user.walletAddress === "", "signup created a wallet — it must not, that would be custody");
   return user.email;
 });
@@ -195,7 +195,7 @@ await check("The dashboard is scoped to its owner", "nobody sees another busines
   const mine = await (await biz.fetch("/api/business")).json();
   assert(mine.campaigns.some((c) => c.id === campaignId), "my campaign is missing from my dashboard");
 
-  await signIn(other, `other-${stamp}@vane.test`, "business");
+  await signIn(other, `other-${stamp}@demo.vane`, "business");
   const theirs = await (await other.fetch("/api/business")).json();
   assert(!theirs.campaigns.some((c) => c.id === campaignId), "another account can see my campaign");
   return "isolated";

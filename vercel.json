@@ -1,0 +1,12 @@
+{
+  "buildCommand": "npm run build -w app",
+  "installCommand": "npm install",
+  "outputDirectory": "app/.next",
+  "framework": "nextjs",
+  "crons": [
+    {
+      "path": "/api/cron/settle",
+      "schedule": "0 3 * * *"
+    }
+  ]
+}

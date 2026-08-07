@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { timingSafeEqual } from "node:crypto";
 import { runPass } from "@vane/agent/pass";
+import { currentUserId } from "../../../../lib/session";
 
 /**
  * GET /api/cron/settle — pay or hold everything that converted recently.
@@ -23,6 +24,40 @@ import { runPass } from "@vane/agent/pass";
 // Circle. The default 15s would cut a pass off midway through paying somebody.
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
+
+/**
+ * POST — settle now, for whoever just converted.
+ *
+ * A Hobby plan runs cron once a day, which would mean converting on Arc and waiting
+ * until three in the morning to be paid. That is not a demo, and more importantly it
+ * is not the product: the claim is that verification is fast enough to settle while
+ * the person is still looking at the screen.
+ *
+ * So the daily cron is the backstop, and the conversion itself is the trigger. Signed
+ * in only, and it decides nothing on the caller's behalf — a pass judges whatever is
+ * genuinely on the chain, which is the same work whoever asked for it. The worst a
+ * caller can do by asking twice is spend a little gas, because a claim already handled
+ * comes back to the same idempotency key.
+ */
+export async function POST() {
+  if (!(await currentUserId())) {
+    return NextResponse.json({ error: "Sign in first." }, { status: 401 });
+  }
+
+  try {
+    // A short window: this is called moments after a conversion lands, and scanning
+    // further back only slows down the reply the person is waiting for.
+    const result = await runPass(400n);
+    return NextResponse.json({
+      ok: true,
+      settled: result.handled.filter((h) => h.verdict !== "hold").length,
+      held: result.handled.filter((h) => h.verdict === "hold").length,
+      decisions: result.handled,
+    });
+  } catch (err) {
+    return NextResponse.json({ ok: false, error: (err as Error).message }, { status: 500 });
+  }
+}
 
 export async function GET(req: Request) {
   const secret = process.env.CRON_SECRET;
