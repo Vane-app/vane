@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createUser, updateUser, findUserByEmail, getUser, type User } from "../../../lib/store";
 import { setSession, clearSession, currentUserId } from "../../../lib/session";
-import { issueCode, verifyCode } from "../../../lib/auth-code";
+import { issueCode, verifyCode, callerIsFlooding } from "../../../lib/auth-code";
 
 /**
  * Sign in and sign up, in two steps.
@@ -26,7 +26,33 @@ export async function POST(req: Request) {
   // --- step one: ask for a code -------------------------------------------
   if (!body.code) {
     const existing = await findUserByEmail(email);
-    const { devCode, delivered, expiresInSeconds } = await issueCode(email);
+
+    /**
+     * Asking for a code sends an email, and nothing stopped anyone asking as fast as
+     * they liked — twenty requests went through in under three seconds. Aimed at a
+     * stranger's inbox that is an email bomb sent by us; aimed anywhere it burns the
+     * daily sending quota the whole product runs on.
+     */
+    const caller =
+      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+    if (callerIsFlooding(caller)) {
+      return NextResponse.json(
+        { error: "Too many sign-in codes requested. Wait a few minutes." },
+        { status: 429 },
+      );
+    }
+
+    const issued = await issueCode(email);
+    if ("refused" in issued) {
+      return NextResponse.json(
+        {
+          error: `We just sent one. Check your inbox, or ask again in ${issued.retryInSeconds}s.`,
+          retryInSeconds: issued.retryInSeconds,
+        },
+        { status: 429 },
+      );
+    }
+    const { devCode, delivered, expiresInSeconds } = issued;
 
     // Undelivered and unshowable means the person is holding a code that exists only in
     // our database. Saying "check your inbox" would send them to wait for an email that

@@ -17,14 +17,43 @@ import { db, schema } from "./db/client";
 const TTL_SECONDS = 10 * 60;
 const MAX_ATTEMPTS = 5;
 
+/**
+ * How often one address may be sent a code, and how many any one caller may trigger.
+ *
+ * Asking for a code sends an email, and nothing limited how often anyone could ask.
+ * Twenty requests went through in under three seconds. Pointed at a stranger's inbox
+ * that is an email bomb sent by us; pointed anywhere it burns a daily sending quota
+ * the whole product depends on, and earns the sending account a spam reputation it
+ * cannot easily lose.
+ *
+ * The per-address cooldown is the important one — it makes bombing a specific person
+ * impossible regardless of where the requests come from. The per-caller cap is best
+ * effort: serverless instances do not share memory, so it slows a flood rather than
+ * stopping it, which is still the difference between a nuisance and a quota gone.
+ */
+const RESEND_COOLDOWN_SECONDS = 45;
+const MAX_SENDS_PER_CALLER_PER_HOUR = 12;
+
 const now = () => Math.floor(Date.now() / 1000);
 const hash = (code: string) => createHash("sha256").update(code).digest("hex");
 
 /** In-memory fallback so the app still runs with no DATABASE_URL. */
 const g = globalThis as unknown as {
   __vaneCodes?: Map<string, { codeHash: string; expiresAt: number; attempts: number }>;
+  __vaneSends?: Map<string, number[]>;
 };
 const mem = () => (g.__vaneCodes ??= new Map());
+const sends = () => (g.__vaneSends ??= new Map());
+
+/** True when this caller has asked for too many codes in the last hour. */
+export function callerIsFlooding(caller: string): boolean {
+  const cutoff = now() - 3600;
+  const recent = (sends().get(caller) ?? []).filter((t: number) => t > cutoff);
+  sends().set(caller, recent);
+  if (recent.length >= MAX_SENDS_PER_CALLER_PER_HOUR) return true;
+  recent.push(now());
+  return false;
+}
 
 /**
  * Whether a code may be shown on screen instead of emailed.
@@ -61,6 +90,8 @@ export const DEMO_EMAIL_DOMAIN = "demo.vane";
 export const isDemoAddress = (email: string) =>
   email.toLowerCase().trim().endsWith(`@${DEMO_EMAIL_DOMAIN}`);
 
+export type IssueRefusal = { refused: "too-soon"; retryInSeconds: number };
+
 export interface IssuedCode {
   /** The code itself, on a developer machine with no provider wired. Never in production. */
   devCode?: string;
@@ -75,8 +106,21 @@ export interface IssuedCode {
  * Asking twice invalidates the first code. That is the behaviour people expect when
  * they hit "resend", and it stops a pile of live codes accumulating for one address.
  */
-export async function issueCode(email: string): Promise<IssuedCode> {
+export async function issueCode(email: string): Promise<IssuedCode | IssueRefusal> {
   const key = email.toLowerCase();
+
+  // One address, one code every so often — whatever the caller looks like.
+  const existing = db
+    ? (await db.select().from(schema.loginCodes).where(eq(schema.loginCodes.email, key)).limit(1))[0]
+    : mem().get(key);
+  if (existing) {
+    const issuedAt = existing.expiresAt - TTL_SECONDS;
+    const since = now() - issuedAt;
+    if (since < RESEND_COOLDOWN_SECONDS) {
+      return { refused: "too-soon", retryInSeconds: RESEND_COOLDOWN_SECONDS - since };
+    }
+  }
+
   const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
   const expiresAt = now() + TTL_SECONDS;
 

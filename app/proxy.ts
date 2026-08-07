@@ -38,10 +38,23 @@ const PUBLIC = [
 ];
 const PUBLIC_PREFIXES = ["/campaign/", "/business/", "/r/", "/api/", "/_next/", "/favicon"];
 
+/**
+ * Dashboard pages that live under a public prefix.
+ *
+ * "/business/" is public because "/business/acme" is a company's profile, readable by
+ * anyone deciding whether to work for them. The prefix matched the business's own
+ * screens too, so /business/promoters — who works for you, what each has earned —
+ * loaded without a session. The API behind it refused, so nothing leaked, but a
+ * private page that renders to a stranger is a hole waiting for the next endpoint
+ * that forgets to check.
+ */
+const PRIVATE_UNDER_PUBLIC = ["/business/promoters", "/business/settings"];
+
 function isPublic(pathname: string): boolean {
   if (PUBLIC.includes(pathname)) return true;
   // "/business" is the dashboard; "/business/acme" is a public profile.
   if (pathname === "/business") return false;
+  if (PRIVATE_UNDER_PUBLIC.some((p) => pathname === p || pathname.startsWith(p + "/"))) return false;
   return PUBLIC_PREFIXES.some((p) => pathname.startsWith(p));
 }
 
