@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { pricingError } from "../../../lib/pricing";
 import { listCampaigns, createCampaign, getUser } from "../../../lib/store";
 import { currentUserId } from "../../../lib/session";
 import { startSession, createContractChallenge, userWalletsConfigured } from "../../../lib/circle-user";
@@ -50,8 +51,12 @@ export async function POST(req: Request) {
   const name = String(b.business ?? u.name ?? "Your business").trim();
   const rewardPerAction = Number(b.rewardPerAction);
   const budget = Number(b.budget);
-  if (!rewardPerAction || !budget || rewardPerAction > budget) {
-    return NextResponse.json({ error: "Check the rate and budget." }, { status: 400 });
+  // "Check the rate and budget" told a business nothing about which number was wrong or
+  // what would be right. It also let through rates no promoter would ever take, which
+  // cost the business a funded campaign that then sat unclaimed.
+  const badPricing = pricingError(rewardPerAction, budget);
+  if (badPricing) {
+    return NextResponse.json({ error: badPricing }, { status: 400 });
   }
 
   const c = await createCampaign({

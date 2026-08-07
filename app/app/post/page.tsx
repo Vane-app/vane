@@ -8,6 +8,7 @@ import { useWallet } from "../../components/Wallet";
 import { useProfile } from "../../components/Profile";
 import { Back } from "../../components/Back";
 import { usd, FEE_BPS, type TaskType } from "../../lib/data";
+import { pricingError } from "../../lib/pricing";
 
 /**
  * Post a campaign — the business side of the marketplace.
@@ -107,6 +108,15 @@ export default function PostCampaign() {
    * A warning rather than a block. The business decides its own rate; it just should
    * not find out from silence that nobody took the work.
    */
+  /**
+   * The rates the server will refuse outright.
+   *
+   * Distinct from the advice below: this is not "few people will take this", it is
+   * "this cannot work", and letting someone fill in the rest of the form and approve a
+   * wallet transaction before telling them would be the wrong place to find out.
+   */
+  const blocker = pricingError(Math.round(rate * 1_000_000), Math.round(budget * 1_000_000));
+
   const rateNote =
     rate < 0.25
       ? { tone: "bad", text: "Below what most promoters will work for. Expect very few takers." }
@@ -255,14 +265,16 @@ export default function PostCampaign() {
 
             <button
               className="btn btn-amber"
-              style={{ marginTop: 18 }}
               onClick={() => void lockAndGoLive()}
-              disabled={locking}
+              disabled={locking || Boolean(blocker)}
+              style={{ marginTop: 18, opacity: blocker ? 0.4 : 1 }}
             >
               {locking
                 ? (lockStep ?? "Confirm in your wallet…")
                 : `Lock ${usd(budget * 1_000_000, { cents: false })} & go live`}
             </button>
+            {/* Said here rather than after they have approved a transaction. */}
+            {blocker && <p className="wallet-error" style={{ marginTop: 10 }}>{blocker}</p>}
             {postError && <p className="wallet-error" style={{ marginTop: 10 }}>{postError}</p>}
             <p className="tiny" style={{ textAlign: "center", marginTop: 12 }}>
               Held in escrow by contract. Not even Vane can move it.
