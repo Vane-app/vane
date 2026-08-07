@@ -317,16 +317,27 @@ input {
    the subject. */
 @media (max-width: 860px) {
   .hp-shot {
-    margin-top: clamp(-210px, -20vh, -110px);
+    /*
+      Measured against the image, not the window.
+
+      The photograph is 118vw wide and 3:4, so it is about 157vw tall — its size tracks
+      the width of the screen and has nothing to do with the height. Offsetting it in vh
+      meant the copy sat at a different point on the image on every phone: half the
+      viewport landed the text on the phone's own screen, among campaign names and
+      dollar figures, and pulling back far enough to fix that detached the image
+      entirely so it read as a picture dragged in underneath.
+
+      -55vw is about 35% down the image on any screen. The mask is transparent above
+      16% and only turns solid past 47%, so the copy lands on the glow and the phone's
+      top edge — overlapping, as intended, without ever touching the subject.
+    */
+    margin-top: -55vw;
   }
 
   .hp-feeline {
-    /* The last line before the image, so it is the one that collides. Give it room of
-       its own rather than trusting the overlap to stay tasteful at every height. */
-    margin-top: 26px;
-    /* Narrow enough that it breaks after the middot rather than stranding the single
-       word "results" on a line of its own. */
-    max-width: 21ch;
+    /* Balanced across two lines rather than stranding "results" alone. Constraining the
+       width to force this pushed it to three, which was worse than the orphan. */
+    margin-top: 22px;
     text-wrap: balance;
   }
 }
