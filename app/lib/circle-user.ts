@@ -59,13 +59,26 @@ export interface WalletSession {
 export async function startSession(userId: string): Promise<WalletSession> {
   const c = await client();
 
+  /**
+   * Use the Circle user the person signed in as, when there is one.
+   *
+   * Signing in with Circle's email OTP already creates a Circle user and proves who it
+   * belongs to. Minting a second one keyed on Vane's own id would give the same person
+   * two identities at Circle — the one that passed the OTP, and the one that owns their
+   * wallet — so recovering a wallet would have nothing to do with logging in. Falls
+   * back to Vane's id for accounts made before Circle became the front door.
+   */
+  const { getUser } = await import("./store");
+  const account = await getUser(userId).catch(() => undefined);
+  const circleId = account?.circleUserId ?? userId;
+
   try {
-    await c.createUser({ userId });
+    await c.createUser({ userId: circleId });
   } catch {
     // Already exists. The only way to know is to try, and a second signup is normal.
   }
 
-  const tokenRes = await c.createUserToken({ userId });
+  const tokenRes = await c.createUserToken({ userId: circleId });
   const userToken = tokenRes.data?.userToken;
   const encryptionKey = tokenRes.data?.encryptionKey;
   if (!userToken || !encryptionKey) throw new Error("Circle did not return a user session token");

@@ -28,6 +28,8 @@ export interface User {
   avatar: string;
   walletId: string;
   walletAddress: string;
+  /** Circle's id for this person, once they have signed in with Circle's email OTP. */
+  circleUserId?: string;
   reputation: number;
   strengths: Industry[];
   channels: string[];
@@ -148,6 +150,53 @@ async function seedIfEmpty() {
 
 // --------------------------------------------------------------------- users
 
+/**
+ * Find the account Circle's login belongs to.
+ *
+ * Identity, as opposed to `findUserByEmail`, which is a lookup by label. Circle
+ * verifies an address and hands back a user id without ever telling us which address
+ * it verified — so the browser's claim about the email is not evidence of anything,
+ * while holding this id means having passed the OTP.
+ */
+export async function findUserByCircleId(circleUserId: string): Promise<User | undefined> {
+  if (!db) {
+    for (const u of mem().users.values()) if (u.circleUserId === circleUserId) return u;
+    return undefined;
+  }
+  const [u] = await db
+    .select()
+    .from(schema.users)
+    .where(eq(schema.users.circleUserId, circleUserId))
+    .limit(1);
+  return u ? await hydrate(u) : undefined;
+}
+
+/**
+ * Bind a Circle login to an account, creating one if this is a first sign-in.
+ *
+ * An email that already exists without a Circle id is adopted rather than duplicated:
+ * these are accounts made before Circle became the front door, and the person signing
+ * in has just proved more about themselves than they ever did originally.
+ */
+export async function linkCircleUser(
+  circleUserId: string,
+  email: string,
+  role: User["role"] = "tasker",
+): Promise<{ user: User; isNew: boolean }> {
+  const existing = await findUserByCircleId(circleUserId);
+  if (existing) return { user: existing, isNew: false };
+
+  const byEmail = await findUserByEmail(email);
+  if (byEmail) {
+    const updated = await updateUser(byEmail.id, { circleUserId });
+    return { user: updated ?? byEmail, isNew: false };
+  }
+
+  const created = await createUser(email, role);
+  const updated = await updateUser(created.id, { circleUserId });
+  return { user: updated ?? created, isNew: true };
+}
+
 export async function findUserByEmail(email: string): Promise<User | undefined> {
   const key = email.toLowerCase();
   if (!db) {
@@ -176,6 +225,7 @@ async function hydrate(u: typeof schema.users.$inferSelect): Promise<User> {
     avatar: u.avatarUrl ?? "",
     walletId: u.walletId ?? "",
     walletAddress: u.walletAddress ?? "",
+    circleUserId: u.circleUserId ?? undefined,
     reputation: u.reputation,
     strengths: (p?.strengths ?? []) as Industry[],
     channels: p?.channels ?? [],
@@ -237,6 +287,7 @@ export async function updateUser(id: string, patch: Partial<User>): Promise<User
   if (patch.walletId !== undefined) cols.walletId = patch.walletId;
   if (patch.walletAddress !== undefined) cols.walletAddress = patch.walletAddress;
   if (patch.reputation !== undefined) cols.reputation = patch.reputation;
+  if (patch.circleUserId !== undefined) cols.circleUserId = patch.circleUserId;
   if (Object.keys(cols).length) {
     await db.update(schema.users).set(cols).where(eq(schema.users.id, id));
   }

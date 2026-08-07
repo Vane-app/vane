@@ -33,6 +33,17 @@ export const users = pgTable("users", {
    *  Proof is control of the domain itself — see lib/domain.ts. */
   domain: text("domain").default(""),
   domainVerifiedAt: bigint("domain_verified_at", { mode: "number" }),
+  /**
+   * Who Circle says this is.
+   *
+   * The account's real identity once someone signs in with Circle's email OTP. Circle
+   * verifies the address and returns a user id, but never tells us which address it
+   * was — so binding an account to the email the browser claims would let anyone who
+   * completed a legitimate login for their own address then ask for somebody else's.
+   * The id cannot be obtained without passing the OTP, so it is the thing worth
+   * trusting; the email beside it is a label.
+   */
+  circleUserId: text("circle_user_id").unique(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

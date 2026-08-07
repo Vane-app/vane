@@ -71,41 +71,18 @@ function runChallenge(sdk: CircleSdk, challengeId: string, what: string): Promis
   });
 }
 
-export function useWallet() {
-  const [status, setStatus] = useState<Status>("idle");
-  const [address, setAddress] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const sdkRef = useRef<CircleSdk | null>(null);
+/**
+ * The Circle SDK, themed, loaded once per page.
+ *
+ * Lifted out of useWallet because signing in now needs it too: Circle sends the login
+ * code and collects it in its own modal, so the login screen and the wallet are the
+ * same SDK instance. Two would mean two device sessions and two sets of theming, and
+ * the login modal would arrive in Circle's white while the wallet modal is ours.
+ */
+let cachedSdk: W3SSdk | null = null;
 
-  const refresh = useCallback(async () => {
-    setStatus("loading");
-    try {
-      const res = await fetch("/api/wallet");
-      if (!res.ok) throw new Error((await res.json()).error ?? "Could not load your wallet.");
-      const info = (await res.json()) as WalletInfo;
-      setAddress(info.address);
-      // Not configured is not an error — the demo flow stays usable without Circle keys.
-      setStatus(!info.configured ? "demo" : info.ready ? "ready" : "idle");
-      return info;
-    } catch (err) {
-      setError((err as Error).message);
-      setStatus("error");
-      return null;
-    }
-  }, []);
-
-  useEffect(() => {
-    void refresh();
-  }, [refresh]);
-
-  /**
-   * Load the SDK lazily and establish its device session.
-   *
-   * `getDeviceId()` looks redundant and is not: without it `execute()` fails silently,
-   * which is a very expensive thing to debug.
-   */
-  const sdk = useCallback(async (appId: string): Promise<CircleSdk> => {
-    if (sdkRef.current) return sdkRef.current;
+export async function loadCircleSdk(appId: string): Promise<W3SSdk> {
+  if (cachedSdk) return cachedSdk;
     const { W3SSdk: Sdk } = await import("@circle-fin/w3s-pw-web-sdk");
     const instance: CircleSdk = new Sdk({ appSettings: { appId } });
 
@@ -228,9 +205,50 @@ export function useWallet() {
 
     // Without this, execute() fails silently — an expensive thing to debug.
     await instance.getDeviceId();
-    sdkRef.current = instance;
-    return instance;
+    cachedSdk = instance;
+  return instance;
+}
+
+/** The browser's device id, which Circle binds a login token to. */
+export async function circleDeviceId(appId: string): Promise<string> {
+  const instance = await loadCircleSdk(appId);
+  return instance.getDeviceId();
+}
+
+export function useWallet() {
+  const [status, setStatus] = useState<Status>("idle");
+  const [address, setAddress] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const sdkRef = useRef<CircleSdk | null>(null);
+
+  const refresh = useCallback(async () => {
+    setStatus("loading");
+    try {
+      const res = await fetch("/api/wallet");
+      if (!res.ok) throw new Error((await res.json()).error ?? "Could not load your wallet.");
+      const info = (await res.json()) as WalletInfo;
+      setAddress(info.address);
+      // Not configured is not an error — the demo flow stays usable without Circle keys.
+      setStatus(!info.configured ? "demo" : info.ready ? "ready" : "idle");
+      return info;
+    } catch (err) {
+      setError((err as Error).message);
+      setStatus("error");
+      return null;
+    }
   }, []);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  /**
+   * Load the SDK lazily and establish its device session.
+   *
+   * `getDeviceId()` looks redundant and is not: without it `execute()` fails silently,
+   * which is a very expensive thing to debug.
+   */
+  const sdk = useCallback((appId: string) => loadCircleSdk(appId), []);
 
   /** Create the user's wallet. They choose a PIN inside Circle's UI; we never see it. */
   const create = useCallback(async () => {
