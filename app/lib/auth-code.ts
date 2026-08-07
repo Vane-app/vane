@@ -159,37 +159,44 @@ async function clear(email: string) {
 /**
  * Send the code. Returns false when it could not be delivered.
  *
- * Resend is used when RESEND_API_KEY is set. The code is logged only on a developer
- * machine: deployment logs are readable by anyone with dashboard access, so printing a
- * live credential there would just move the leak somewhere quieter.
+ * Sent over SMTP, which is what makes this work at all. Resend would only deliver to
+ * the account holder without a domain proved by DNS, and the domain in question runs
+ * another product whose nameservers were not worth moving for a login email. An SMTP
+ * account has no such requirement — it will send to anybody.
  *
- * LOGIN_EMAIL_FROM must be an address at a domain verified with Resend. The default
- * test sender only delivers to the Resend account holder, so leaving it unset means
- * everyone else silently fails to receive anything.
+ * The code is logged only on a developer machine: deployment logs are readable by
+ * anyone with dashboard access, so printing a live credential there would move the
+ * leak somewhere quieter rather than close it.
  */
 async function deliver(email: string, code: string): Promise<boolean> {
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.LOGIN_EMAIL_FROM ?? "Vane <onboarding@resend.dev>";
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+  const from = process.env.LOGIN_EMAIL_FROM ?? (user ? `Vane <${user}>` : "");
 
-  if (!apiKey) {
+  if (!user || !pass) {
     if (MAY_SHOW_CODE) console.log(`[vane] login code for ${email}: ${code}`);
-    else console.error("[vane] RESEND_API_KEY is not set — nobody can sign in.");
+    else console.error("[vane] SMTP_USER/SMTP_PASS are not set — nobody can sign in.");
     return false;
   }
 
   try {
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        from,
-        to: [email],
-        subject: `${code} is your Vane code`,
-        text: `Your Vane sign-in code is ${code}. It expires in 10 minutes.\n\nIf you didn't ask for this, you can ignore it — it was not enough to sign anyone in on its own.`,
-        html: codeEmail(code),
-      }),
+    const nodemailer = (await import("nodemailer")).default;
+    const transport = nodemailer.createTransport({
+      host: process.env.SMTP_HOST ?? "smtp.gmail.com",
+      port: Number(process.env.SMTP_PORT ?? 587),
+      secure: false, // STARTTLS on 587, which is what Gmail expects
+      auth: { user, pass },
     });
-    if (!res.ok) throw new Error(await res.text());
+
+    await transport.sendMail({
+      from,
+      to: email,
+      subject: `${code} is your Vane code`,
+      text: `Your Vane sign-in code is ${code}. It expires in 10 minutes and can be used once.
+
+If you didn't ask for this, you can ignore it — on its own it is not enough to sign anyone in.`,
+      html: codeEmail(code),
+    });
     return true;
   } catch (err) {
     console.error("[vane] could not email the login code:", (err as Error).message);
@@ -198,12 +205,32 @@ async function deliver(email: string, code: string): Promise<boolean> {
   }
 }
 
-/** Plain, legible, and no images — so it renders the same everywhere and lands in inboxes. */
+/**
+ * The email itself.
+ *
+ * Tables and bgcolor attributes rather than styled divs: Gmail drops background
+ * properties on block elements but honours the attribute, which is why the first
+ * version of this arrived as black text on white with the code the same size as the
+ * body copy. No images either, so nothing has to load and nothing can fail to.
+ */
 function codeEmail(code: string) {
-  return `<div style="font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif;max-width:420px;margin:0 auto;padding:32px 24px;color:#1a1614">
-  <p style="font-size:19px;font-weight:700;letter-spacing:-.03em;margin:0 0 28px">vane</p>
-  <p style="font-size:15px;line-height:1.5;margin:0 0 20px">Here is your sign-in code.</p>
-  <p style="font-size:34px;font-weight:700;letter-spacing:.14em;margin:0 0 20px;font-variant-numeric:tabular-nums">${code}</p>
-  <p style="font-size:13.5px;line-height:1.55;color:#6b625c;margin:0">It expires in 10 minutes and can be used once. If you didn&rsquo;t ask for it, you can ignore this — on its own it isn&rsquo;t enough to sign anyone in.</p>
-</div>`;
+  return `<table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0a1218" style="background-color:#0a1218;margin:0;padding:0;">
+<tr><td align="center" style="padding:36px 16px;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#111c24" style="max-width:430px;background-color:#111c24;border-radius:14px;">
+<tr><td style="padding:34px 30px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
+<p style="margin:0 0 28px;font-size:20px;font-weight:bold;color:#f3f6f7;">vane</p>
+<p style="margin:0 0 20px;font-size:19px;font-weight:bold;color:#f3f6f7;">Your sign-in code</p>
+<table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0a1218" style="background-color:#0a1218;border-radius:10px;">
+<tr><td align="center" style="padding:20px 10px;">
+<span style="font-family:'Courier New',Courier,monospace;font-size:32px;font-weight:bold;color:#f0a94b;letter-spacing:8px;">${code}</span>
+</td></tr>
+</table>
+<p style="margin:22px 0 10px;font-size:14px;line-height:21px;color:#9aa9b2;">Expires in 10 minutes and can be used once.</p>
+<p style="margin:0;font-size:14px;line-height:21px;color:#9aa9b2;">If you didn&rsquo;t ask for this, ignore it &mdash; on its own it isn&rsquo;t enough to sign anyone in.</p>
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:30px;">
+<tr><td style="border-top:1px solid #223039;padding-top:16px;">
+<p style="margin:0;font-size:12px;line-height:18px;color:#6d7d87;">Vane never asks for your PIN, seed phrase or private key.</p>
+</td></tr></table>
+</td></tr></table>
+</td></tr></table>`;
 }
