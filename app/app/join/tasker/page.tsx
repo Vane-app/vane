@@ -61,7 +61,23 @@ export default function TaskerOnboarding() {
     setSignedIn(true);
     setName((n) => n || me.name);
     setAvatar((a) => a || me.avatar);
-    setStep((s) => (s === "email" ? "strengths" : s));
+
+    /**
+     * Skip identity only for an account that actually has one.
+     *
+     * This skipped whenever any session existed, and a session exists from the moment
+     * a code is verified — deliberately, so a half-finished signup leaves a real
+     * account to come back to. The two together meant anyone whose first attempt broke
+     * partway could never reach the email step again: it rendered for a single frame,
+     * the effect fired, and the screen jumped. It read as a flicker and a form that
+     * refused to accept input, with no way back and nothing explaining why.
+     *
+     * A wallet, or the other side of the marketplace, is what makes skipping right —
+     * that is someone who genuinely has an identity here already. Everyone else sees
+     * the step, with their address filled in and a way to use a different one.
+     */
+    const established = Boolean(me.walletAddress) || me.role === "business" || me.role === "both";
+    if (established) setStep((s) => (s === "email" ? "strengths" : s));
   }, [me]);
 
   const idx = ORDER.indexOf(step);
@@ -137,6 +153,32 @@ export default function TaskerOnboarding() {
           title="Let's get you earning"
           sub="Your email, then a 6-digit code to prove it's yours. No password to remember."
         >
+          {/* Signed in already, but not set up — a signup that broke partway leaves
+              exactly this state. Say whose account it is and offer both ways out,
+              rather than looking like a form that will not accept an email. */}
+          {me && (
+            <div className="card" style={{ marginBottom: 14 }}>
+              <p className="tiny" style={{ margin: 0 }}>
+                You&rsquo;re signed in as <b style={{ color: "var(--ink)" }}>{me.email}</b>.
+              </p>
+              <div className="row" style={{ gap: 12, marginTop: 10 }}>
+                <button className="btn btn-amber" style={{ flex: 1 }} onClick={() => setStep("profile")}>
+                  Continue
+                </button>
+                <button
+                  className="tiny"
+                  onClick={async () => {
+                    await fetch("/api/auth", { method: "DELETE" }).catch(() => {});
+                    location.reload();
+                  }}
+                  style={{ background: "none", border: 0, cursor: "pointer", textDecoration: "underline", textUnderlineOffset: 3 }}
+                >
+                  Use a different email
+                </button>
+              </div>
+            </div>
+          )}
+
           <EmailStep
             role="tasker"
             submitLabel="Email me a code"
