@@ -87,3 +87,50 @@ export function pricingError(rewardPerAction: number, budget: number): string | 
   }
   return null;
 }
+
+/**
+ * The rest of what a listing has to be before it can exist.
+ *
+ * Pricing was checked and nothing else was, so a campaign could be posted with a name
+ * containing markup, a blurb five thousand characters long, a budget of nine
+ * quadrillion dollars, or a duration of zero days. The last one is the worst: a
+ * campaign whose window has already closed can never be settled, so it would take a
+ * promoter's work and refuse every result — a dead end that looks exactly like a live
+ * listing until somebody tries.
+ *
+ * Limits chosen from what the cards actually render rather than from round numbers: a
+ * name past ~40 characters wraps out of its row, and a blurb past ~140 stops being the
+ * one-line description the layout is built around.
+ */
+export const MAX_NAME = 40;
+export const MAX_BLURB = 140;
+export const MAX_BUDGET = 1_000_000_000_000; // $1m — far past any demo, short of overflow
+export const MIN_DAYS = 1;
+export const MAX_DAYS = 90;
+
+export function campaignError(input: {
+  business: string;
+  blurb: string;
+  budget: number;
+  durationDays: number;
+}): string | null {
+  const name = input.business.trim();
+  if (!name) return "Give the campaign a business name.";
+  if (name.length > MAX_NAME) return `Keep the business name under ${MAX_NAME} characters.`;
+  // Not an XSS defence — React escapes on render — but a name is a name, and one
+  // carrying markup is either a mistake or someone testing us. Either way it does not
+  // belong on a card.
+  if (/[<>]/.test(name)) return "The business name can't contain < or >.";
+
+  if (input.blurb.length > MAX_BLURB) {
+    return `Keep the result description under ${MAX_BLURB} characters — it's one line on a card.`;
+  }
+  if (input.budget > MAX_BUDGET) return "That budget is larger than this can handle.";
+
+  if (!Number.isFinite(input.durationDays) || input.durationDays < MIN_DAYS) {
+    return "A campaign has to run for at least a day — one ending today could never pay anyone.";
+  }
+  if (input.durationDays > MAX_DAYS) return `Campaigns can run for up to ${MAX_DAYS} days.`;
+
+  return null;
+}

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { pricingError } from "../../../lib/pricing";
+import { pricingError, campaignError } from "../../../lib/pricing";
 import { listCampaigns, createCampaign, getUser } from "../../../lib/store";
 import { currentUserId } from "../../../lib/session";
 import { startSession, createContractChallenge, userWalletsConfigured } from "../../../lib/circle-user";
@@ -59,9 +59,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: badPricing }, { status: 400 });
   }
 
+  const blurb = String(b.blurb ?? "");
+  const durationDays = Number(b.durationDays ?? 30);
+  // Everything about the listing that is not its price. Nothing here was checked.
+  const badInput = campaignError({ business: name, blurb, budget, durationDays });
+  if (badInput) {
+    return NextResponse.json({ error: badInput }, { status: 400 });
+  }
+
   const c = await createCampaign({
     business: name,
-    blurb: String(b.blurb ?? ""),
+    blurb,
     initial: name[0]?.toUpperCase() ?? "V",
     colour: b.colour ?? "#3e6b8f",
     industry: (b.industry ?? "Payments") as Industry,
@@ -69,7 +77,7 @@ export async function POST(req: Request) {
     kind: b.kind === "web3" ? "web3" : "web2",
     rewardPerAction,
     budget,
-    durationDays: Number(b.durationDays ?? 30),
+    durationDays,
     bonded: Boolean(b.bonded),
     ownerId: id, // so the business dashboard can show this campaign, and only to them
     // The business uploaded a logo at signup and it was never used anywhere. A
