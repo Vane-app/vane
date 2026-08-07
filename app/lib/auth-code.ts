@@ -26,9 +26,23 @@ const g = globalThis as unknown as {
 };
 const mem = () => (g.__vaneCodes ??= new Map());
 
+/**
+ * Whether a code may be shown on screen instead of emailed.
+ *
+ * Only ever true on a developer's own machine. Vercel sets NODE_ENV=production for
+ * preview deployments as well as the live one, so nothing that is reachable over the
+ * internet can take this path — which is the entire point. Deployed with no email
+ * provider, `POST /api/auth` returned the code in its own response body, so anyone who
+ * typed anyone's address was handed a working login. That is the impersonation hole
+ * this module exists to close, arriving through the back door.
+ */
+const MAY_SHOW_CODE = process.env.NODE_ENV !== "production";
+
 export interface IssuedCode {
-  /** Returned only when no email provider is configured — see `deliver`. */
+  /** The code itself, on a developer machine with no provider wired. Never in production. */
   devCode?: string;
+  /** False when the code could not be emailed — the caller must not pretend it was sent. */
+  delivered: boolean;
   expiresInSeconds: number;
 }
 
@@ -57,10 +71,11 @@ export async function issueCode(email: string): Promise<IssuedCode> {
 
   const delivered = await deliver(key, code);
   return {
-    // With no provider wired there is nowhere for the code to go, so it comes back
-    // to the caller and the UI shows it. Better than a login nobody can complete —
-    // and explicitly not what happens once RESEND_API_KEY is set.
-    devCode: delivered ? undefined : code,
+    // On a developer machine with no provider wired there is nowhere for the code to
+    // go, so it comes back and the UI shows it. Anywhere deployed, an undelivered code
+    // is a failure to report — never a code to hand out.
+    devCode: !delivered && MAY_SHOW_CODE ? code : undefined,
+    delivered,
     expiresInSeconds: TTL_SECONDS,
   };
 }
@@ -113,18 +128,23 @@ async function clear(email: string) {
 }
 
 /**
- * Send the code. Returns false when there is nowhere to send it.
+ * Send the code. Returns false when it could not be delivered.
  *
- * Resend is used when RESEND_API_KEY is set; without it the code is logged and
- * surfaced in the UI, so the flow is complete and testable rather than a dead end
- * waiting on an account nobody has created yet.
+ * Resend is used when RESEND_API_KEY is set. The code is logged only on a developer
+ * machine: deployment logs are readable by anyone with dashboard access, so printing a
+ * live credential there would just move the leak somewhere quieter.
+ *
+ * LOGIN_EMAIL_FROM must be an address at a domain verified with Resend. The default
+ * test sender only delivers to the Resend account holder, so leaving it unset means
+ * everyone else silently fails to receive anything.
  */
 async function deliver(email: string, code: string): Promise<boolean> {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.LOGIN_EMAIL_FROM ?? "Vane <onboarding@resend.dev>";
 
   if (!apiKey) {
-    console.log(`[vane] login code for ${email}: ${code}`);
+    if (MAY_SHOW_CODE) console.log(`[vane] login code for ${email}: ${code}`);
+    else console.error("[vane] RESEND_API_KEY is not set — nobody can sign in.");
     return false;
   }
 
@@ -136,15 +156,25 @@ async function deliver(email: string, code: string): Promise<boolean> {
         from,
         to: [email],
         subject: `${code} is your Vane code`,
-        text: `Your Vane sign-in code is ${code}. It expires in 10 minutes.\n\nIf you didn't ask for this, you can ignore it.`,
+        text: `Your Vane sign-in code is ${code}. It expires in 10 minutes.\n\nIf you didn't ask for this, you can ignore it — it was not enough to sign anyone in on its own.`,
+        html: codeEmail(code),
       }),
     });
     if (!res.ok) throw new Error(await res.text());
     return true;
   } catch (err) {
-    // A failed send must not lock someone out; fall back to the visible code.
     console.error("[vane] could not email the login code:", (err as Error).message);
-    console.log(`[vane] login code for ${email}: ${code}`);
+    if (MAY_SHOW_CODE) console.log(`[vane] login code for ${email}: ${code}`);
     return false;
   }
+}
+
+/** Plain, legible, and no images — so it renders the same everywhere and lands in inboxes. */
+function codeEmail(code: string) {
+  return `<div style="font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif;max-width:420px;margin:0 auto;padding:32px 24px;color:#1a1614">
+  <p style="font-size:19px;font-weight:700;letter-spacing:-.03em;margin:0 0 28px">vane</p>
+  <p style="font-size:15px;line-height:1.5;margin:0 0 20px">Here is your sign-in code.</p>
+  <p style="font-size:34px;font-weight:700;letter-spacing:.14em;margin:0 0 20px;font-variant-numeric:tabular-nums">${code}</p>
+  <p style="font-size:13.5px;line-height:1.55;color:#6b625c;margin:0">It expires in 10 minutes and can be used once. If you didn&rsquo;t ask for it, you can ignore this — on its own it isn&rsquo;t enough to sign anyone in.</p>
+</div>`;
 }

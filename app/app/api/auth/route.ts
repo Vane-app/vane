@@ -26,7 +26,18 @@ export async function POST(req: Request) {
   // --- step one: ask for a code -------------------------------------------
   if (!body.code) {
     const existing = await findUserByEmail(email);
-    const { devCode, expiresInSeconds } = await issueCode(email);
+    const { devCode, delivered, expiresInSeconds } = await issueCode(email);
+
+    // Undelivered and unshowable means the person is holding a code that exists only in
+    // our database. Saying "check your inbox" would send them to wait for an email that
+    // is never coming, so say what actually happened.
+    if (!delivered && !devCode) {
+      return NextResponse.json(
+        { error: "We couldn't email that code. This is our problem, not yours — try again in a moment." },
+        { status: 502 },
+      );
+    }
+
     return NextResponse.json({
       sent: true,
       // Lets the UI say "welcome back" rather than "let's get you started". Only ever

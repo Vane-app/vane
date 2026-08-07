@@ -23,3 +23,5 @@ app/public/deck.html
 app/public/deck/
 
 convert-wallets.json
+
+.vercel

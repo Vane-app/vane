@@ -275,6 +275,29 @@ await check("A forged session is rejected", "the cookie signature is checked", a
   return "refused";
 });
 
+await check("Login codes are never handed to the asker", "you cannot sign in as someone else", async () => {
+  // This suite proved a forged session was refused, and passed for days while the app
+  // gave out genuine ones: with no email provider configured, asking for a code
+  // returned it in the response. Anyone who typed anyone's address was one POST from
+  // their account. Checking that the front door is locked means nothing while the key
+  // is taped to it.
+  const res = await fetch(`${BASE}/api/auth`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: `probe-${Date.now()}@example.com` }),
+  });
+  const body = await res.json().catch(() => ({}));
+
+  // On a developer machine showing the code is the intended behaviour — there is no
+  // inbox to send it to. Anywhere reachable over the network it is a live credential.
+  const local = /localhost|127\.0\.0\.1/.test(BASE);
+  assert(local || !body.devCode, "the login code came back in the response body");
+  // A 502 here is the honest failure — mail is misconfigured, and it refused rather
+  // than falling back to something insecure. Either is a pass; a leaked code is not.
+  assert(res.ok || res.status === 502, `asking for a code returned ${res.status}`);
+  return res.ok ? "emailed, not returned" : "refused to leak it";
+});
+
 await check("Discovery stays public", "a marketplace is browsable before joining", async () => {
   for (const path of ["/", "/tasks", "/login"]) {
     const res = await fetch(`${BASE}${path}`, { redirect: "manual" });
