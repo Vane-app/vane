@@ -21,6 +21,16 @@ interface Props {
   onVerified: (user: { id: string; email: string; role: string }, isNew: boolean) => void;
 }
 
+/**
+ * A throwaway address for someone who wants to look before they commit an inbox.
+ *
+ * Random rather than fixed, so two people trying Vane at once get two accounts and two
+ * wallets instead of fighting over one. Nothing can be mailed to demo.vane, which is
+ * exactly why it is safe to show the code for it.
+ */
+const guestAddress = () =>
+  `guest-${Math.random().toString(36).slice(2, 8)}@demo.vane`;
+
 export function EmailStep({ role, profile, submitLabel = "Continue", onVerified }: Props) {
   const [stage, setStage] = useState<"email" | "code">("email");
   const [email, setEmail] = useState("");
@@ -46,14 +56,16 @@ export function EmailStep({ role, profile, submitLabel = "Continue", onVerified 
     if (stage === "code") codeRef.current?.focus();
   }, [stage]);
 
-  async function sendCode() {
+  // Takes the address explicitly: the guest button sets state and sends in one go, and
+  // reading `email` back here would still hold the previous render's value.
+  async function sendCode(to: string = email) {
     setBusy(true);
     setError(null);
     try {
       const res = await fetch("/api/auth", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email: to }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Could not send a code.");
@@ -123,6 +135,30 @@ export function EmailStep({ role, profile, submitLabel = "Continue", onVerified 
           {busy ? "Sending a code…" : submitLabel}
         </button>
         {error && <p className="wallet-error" style={{ marginTop: 10 }}>{error}</p>}
+
+        {/* A way in for someone who wants to see it work before handing over an inbox —
+            and, until email delivery is configured, the way in for everybody else. */}
+        <button
+          type="button"
+          className="tiny"
+          disabled={busy}
+          onClick={() => {
+            const guest = guestAddress();
+            setEmail(guest);
+            void sendCode(guest);
+          }}
+          style={{
+            marginTop: 14,
+            background: "none",
+            border: 0,
+            padding: 0,
+            cursor: busy ? "default" : "pointer",
+            textDecoration: "underline",
+            textUnderlineOffset: 3,
+          }}
+        >
+          Or look around with a guest account
+        </button>
       </form>
     );
   }
@@ -159,11 +195,13 @@ export function EmailStep({ role, profile, submitLabel = "Continue", onVerified 
         />
       </div>
 
-      {/* Shown only when no email provider is configured, so the flow is completable
-          on a fresh checkout instead of dead-ending on an account nobody has made. */}
+      {/* A guest address has no inbox, so the code belongs on screen. Never shown for a
+          real address in production — that would be handing out other people's logins. */}
       {devCode && (
         <p className="tiny" style={{ marginBottom: 12 }}>
-          Email isn&rsquo;t configured on this deployment, so here it is:{" "}
+          {email.endsWith("@demo.vane")
+            ? "This is a guest account, so there is no inbox. Your code is "
+            : "Email isn’t configured here, so here it is: "}
           <b className="num" style={{ color: "var(--amber)" }}>{devCode}</b>
         </p>
       )}

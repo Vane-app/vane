@@ -38,6 +38,29 @@ const mem = () => (g.__vaneCodes ??= new Map());
  */
 const MAY_SHOW_CODE = process.env.NODE_ENV !== "production";
 
+/**
+ * Addresses that get their code on screen instead of by email.
+ *
+ * Sending real mail needs a verified domain, which this project does not have, so a
+ * stranger with a real inbox cannot sign up. Judges still have to be able to walk the
+ * whole thing — wallet, campaign, settlement — without waiting on an email that will
+ * never arrive.
+ *
+ * `demo.vane` is not a real top-level domain, so no mail can ever reach it and no
+ * address here belongs to anybody. Showing the code for these costs nothing: there is
+ * no account to take over that was not created by whoever is looking at the screen.
+ * Every other address still has to prove it by email.
+ *
+ * Each guest gets their own address, and so their own account and their own wallet. A
+ * single shared demo login would have died at the first PIN — Circle's keyshare belongs
+ * to the person who set it, so the second judge to arrive would have found a wallet
+ * they could not open.
+ */
+export const DEMO_EMAIL_DOMAIN = "demo.vane";
+
+export const isDemoAddress = (email: string) =>
+  email.toLowerCase().trim().endsWith(`@${DEMO_EMAIL_DOMAIN}`);
+
 export interface IssuedCode {
   /** The code itself, on a developer machine with no provider wired. Never in production. */
   devCode?: string;
@@ -67,6 +90,12 @@ export async function issueCode(email: string): Promise<IssuedCode> {
         target: schema.loginCodes.email,
         set: { codeHash: hash(code), expiresAt, attempts: 0 },
       });
+  }
+
+  // A demo address has no inbox by design, so the code goes to the screen and that
+  // counts as delivered — there is nothing failing and nothing to report.
+  if (isDemoAddress(key)) {
+    return { devCode: code, delivered: true, expiresInSeconds: TTL_SECONDS };
   }
 
   const delivered = await deliver(key, code);
