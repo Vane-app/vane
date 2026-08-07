@@ -191,11 +191,31 @@ async function deliver(email: string, code: string): Promise<boolean> {
     await transport.sendMail({
       from,
       to: email,
-      subject: `${code} is your Vane code`,
-      text: `Your Vane sign-in code is ${code}. It expires in 10 minutes and can be used once.
+      replyTo: user,
+      /**
+       * The code is out of the subject line deliberately.
+       *
+       * "643012 is your Vane code" is the shape of every credential-phishing email a
+       * filter has ever been trained on, and this is being sent from a consumer mailbox
+       * with no domain behind it — the sender has nothing to vouch for it, so the
+       * content is all the filter has to go on. It landed in spam.
+       */
+      subject: "Your Vane sign-in code",
+      text: `Your Vane sign-in code is ${code}
 
-If you didn't ask for this, you can ignore it — on its own it is not enough to sign anyone in.`,
+It expires in 10 minutes and can be used once.
+
+If you didn't ask for this, you can ignore it. On its own it is not enough to sign anyone in, and nobody at Vane will ever ask you for it.
+
+Vane`,
       html: codeEmail(code),
+      headers: {
+        // Marks this as transactional rather than bulk, and tells Gmail there is no
+        // list to unsubscribe from — a missing List-Unsubscribe on mail that looks
+        // like marketing counts against it.
+        "X-Entity-Ref-ID": String(Date.now()),
+        Precedence: "transactional",
+      },
     });
     return true;
   } catch (err) {
