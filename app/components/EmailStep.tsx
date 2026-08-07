@@ -81,14 +81,16 @@ export function EmailStep({ role, profile, submitLabel = "Continue", onVerified 
     }
   }
 
-  async function submitCode() {
+  async function submitCode(supplied: string = code) {
     setBusy(true);
     setError(null);
     try {
       const res = await fetch("/api/auth", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, code, role, ...profile }),
+        // `supplied`, not `code`: submitting on the sixth keystroke happens in the same
+        // render that set it, so the state variable is still one digit behind.
+        body: JSON.stringify({ email, code: supplied, role, ...profile }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "That didn't work.");
@@ -189,7 +191,15 @@ export function EmailStep({ role, profile, submitLabel = "Continue", onVerified 
           autoComplete="one-time-code"
           maxLength={6}
           value={code}
-          onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+          onChange={(e) => {
+            const next = e.target.value.replace(/\D/g, "").slice(0, 6);
+            setCode(next);
+            // Six digits is the whole code — there is nothing left to decide, so
+            // asking for a button press afterwards is a step that exists only
+            // because the form was built around one. Autofill from the email lands
+            // all six at once and now completes on its own.
+            if (next.length === 6 && !busy) void submitCode(next);
+          }}
           placeholder="000000"
           className="ob-input code-input"
         />
@@ -201,7 +211,7 @@ export function EmailStep({ role, profile, submitLabel = "Continue", onVerified 
         <p className="tiny" style={{ marginBottom: 12 }}>
           {email.endsWith("@demo.vane")
             ? "This is a guest account, so there is no inbox. Your code is "
-            : "Email isn’t configured here, so here it is: "}
+            : "Shown because this deployment cannot send email: "}
           <b className="num" style={{ color: "var(--amber)" }}>{devCode}</b>
         </p>
       )}
