@@ -1,0 +1,31 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    /**
+     * Emit JavaScript so the web app can import the falcon's judgement.
+     *
+     * The agent runs under tsx, which resolves the ESM-style "./decision.js" specifiers
+     * back to their TypeScript sources. Turbopack does not, so importing the source
+     * directly into a route fails to build. Compiling first makes those specifiers
+     * literally true rather than a convention, and the app imports ordinary modules.
+     *
+     * The alternative was a second decision engine living behind the cron route, which
+     * is the one thing this codebase has already learned not to do.
+     */
+    "noEmit": false,
+    "declaration": true,
+    "outDir": "dist",
+    "rootDir": "src",
+    "module": "NodeNext",
+    "moduleResolution": "nodenext",
+    "allowImportingTsExtensions": false
+  },
+  "include": ["src/**/*.ts"],
+  /**
+   * seed-live reaches sideways into the app's database client to list campaigns it has
+   * funded. That is fine for a script run by hand with tsx and impossible to compile
+   * from here — the file sits outside this rootDir, in a workspace with different module
+   * settings. It is an operator tool, not part of what the app imports.
+   */
+  "exclude": ["src/seed-live.ts"]
+}

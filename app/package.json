@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "npm run build -w @vane/agent && next build",
     "start": "next start",
     "lint": "eslint",
     "db:push": "drizzle-kit push",
@@ -21,7 +21,8 @@
     "postgres": "^3.4.9",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "viem": "^2.55.10"
+    "viem": "^2.55.10",
+    "@vane/agent": "*"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

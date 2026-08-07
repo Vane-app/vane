@@ -1,4 +1,4 @@
-import { createPublicClient, http, erc20Abi } from "viem";
+import { createPublicClient, http, erc20Abi, type PublicClient } from "viem";
 import { config, USDC_ADDRESS } from "./config.js";
 import { registryAbi } from "./abi.js";
 import type { TaskerSignals, WalletSignals } from "./decision.js";
@@ -11,7 +11,10 @@ import type { TaskerSignals, WalletSignals } from "./decision.js";
  * for on-chain conversions.
  */
 
-export const publicClient = createPublicClient({
+// Annotated rather than inferred: viem's inferred client type cannot be named
+// without reaching into its internals, which blocks declaration emit — and the
+// app needs those declarations to import the falcon's judgement.
+export const publicClient: PublicClient = createPublicClient({
   chain: config.chain,
   transport: http(config.rpcUrl),
 });

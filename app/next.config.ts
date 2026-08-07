@@ -12,6 +12,16 @@ import { join } from "node:path";
  */
 loadEnv({ path: join(process.cwd(), "..", ".env") });
 
-const nextConfig: NextConfig = {};
+const nextConfig: NextConfig = {
+  /**
+   * The falcon's judgement ships as TypeScript source from the agent workspace.
+   *
+   * Settlement has to run somewhere that is awake when a judge is clicking, and the
+   * agent's watch loop lives on a developer's laptop. Rather than reimplement scoring
+   * behind a cron route — a second copy that would drift from the first and judge the
+   * same result differently — the app imports the same module the agent runs.
+   */
+  transpilePackages: ["@vane/agent"],
+};
 
 export default nextConfig;

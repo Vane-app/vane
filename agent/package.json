@@ -13,7 +13,8 @@
     "nano": "tsx src/nano.ts",
     "typecheck": "tsc --noEmit",
     "convert": "tsx src/convert.ts",
-    "seed:live": "tsx src/seed-live.ts"
+    "seed:live": "tsx src/seed-live.ts",
+    "build": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
     "@circle-fin/developer-controlled-wallets": "^10.8.0",
@@ -26,5 +27,23 @@
     "@types/node": "^24.10.0",
     "tsx": "^4.23.1",
     "typescript": "^5.9.3"
+  },
+  "exports": {
+    "./decision": {
+      "types": "./dist/decision.d.ts",
+      "default": "./dist/decision.js"
+    },
+    "./signals": {
+      "types": "./dist/signals.d.ts",
+      "default": "./dist/signals.js"
+    },
+    "./config": {
+      "types": "./dist/config.d.ts",
+      "default": "./dist/config.js"
+    },
+    "./pass": {
+      "types": "./dist/pass.d.ts",
+      "default": "./dist/pass.js"
+    }
   }
 }
