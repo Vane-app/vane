@@ -324,6 +324,10 @@ input {
     /* The last line before the image, so it is the one that collides. Give it room of
        its own rather than trusting the overlap to stay tasteful at every height. */
     margin-top: 26px;
+    /* Narrow enough that it breaks after the middot rather than stranding the single
+       word "results" on a line of its own. */
+    max-width: 21ch;
+    text-wrap: balance;
   }
 }
 
