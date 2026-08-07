@@ -27,6 +27,31 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
   const campaign = await getCampaign(campaignId);
   if (!campaign) return NextResponse.json({ error: "Campaign not found." }, { status: 404 });
 
+  /**
+   * A referral nobody can seal is a referral nobody can be paid for.
+   *
+   * Taking a funded campaign without a wallet used to succeed: the take was written,
+   * a link came back, and the response said `sealed: false` with nothing else — no
+   * flag, no error, nothing the screen could act on. So it showed the link. Whoever
+   * shared it did everything right, and the first person to convert through it hit a
+   * registry with no referral on record, emitted NotAttributed, and paid no one. The
+   * dead end was invisible from both ends.
+   *
+   * Refused before the take exists, so there is no orphaned row and no link that was
+   * never going to work. Only for campaigns that are actually funded on-chain — an
+   * unfunded listing has nothing to seal against, and that is a different situation
+   * the response already describes honestly.
+   */
+  if (userWalletsConfigured && process.env.VANE_REGISTRY_ADDRESS && campaign.escrowCampaignId && !user.walletId) {
+    return NextResponse.json(
+      {
+        error: "Set up your wallet first — it's what seals the referral on Arc and receives the payout.",
+        needsWallet: true,
+      },
+      { status: 409 },
+    );
+  }
+
   const take = await takeCampaign(uid, campaignId);
   const base = process.env.NEXT_PUBLIC_APP_URL ?? "https://vane.money";
   const link = `${base.replace(/^https?:\/\//, "")}/r/${take.refCode}`;

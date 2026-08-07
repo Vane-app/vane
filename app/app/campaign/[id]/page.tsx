@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { AppBar, TabBar } from "../../../components/AppChrome";
 import { Logo } from "../../../components/Logo";
 import { Mark } from "../../../components/Falcon";
-import { useWallet } from "../../../components/Wallet";
+import { useWallet, WalletStep } from "../../../components/Wallet";
 import { ConvertPanel } from "../../../components/ConvertPanel";
 import {
   campaigns,
@@ -76,6 +76,9 @@ export default function CampaignPage() {
   const [takeLink, setTakeLink] = useState<string | null>(null);
   const [sealed, setSealed] = useState(false);
   const [takeError, setTakeError] = useState<string | null>(null);
+  // Set when the take was refused for want of a wallet, so the page can offer the
+  // thing that fixes it rather than an error the reader cannot act on.
+  const [needsWallet, setNeedsWallet] = useState(false);
 
   /**
    * Taking a campaign claims a referral code in the registry — an on-chain act, and
@@ -91,6 +94,10 @@ export default function CampaignPage() {
     try {
       const res = await fetch(`/api/campaigns/${id}/take`, { method: "POST" });
       const data = await res.json();
+      if (data.needsWallet) {
+        setNeedsWallet(true);
+        return;
+      }
       if (!res.ok) throw new Error(data.error ?? "Could not take this campaign.");
 
       setTakeLink(data.link ?? null);
@@ -305,10 +312,30 @@ export default function CampaignPage() {
                       <li>Results are checked against onchain evidence</li>
                       <li>Breaking the rules above voids that payout</li>
                     </ul>
-                    <button className="btn btn-amber" onClick={() => void take()} disabled={taking}>
-                      {taking ? "Confirm in your wallet…" : "Agree & get my link"}
-                    </button>
-                    {takeError && <p className="wallet-error" style={{ marginTop: 10 }}>{takeError}</p>}
+                    {needsWallet ? (
+                      /* Refused for want of a wallet. Offer the wallet, not the error —
+                         and take the campaign automatically once it exists, so nobody
+                         has to work out that they were meant to press the button again. */
+                      <div style={{ marginTop: 4 }}>
+                        <p className="sub" style={{ fontSize: 14, marginBottom: 12 }}>
+                          You need a wallet first. It seals the referral on Arc and it is where
+                          the money lands — Vane never holds it.
+                        </p>
+                        <WalletStep
+                          onDone={() => {
+                            setNeedsWallet(false);
+                            void take();
+                          }}
+                        />
+                      </div>
+                    ) : (
+                      <>
+                        <button className="btn btn-amber" onClick={() => void take()} disabled={taking}>
+                          {taking ? "Confirm in your wallet…" : "Agree & get my link"}
+                        </button>
+                        {takeError && <p className="wallet-error" style={{ marginTop: 10 }}>{takeError}</p>}
+                      </>
+                    )}
                     <button
                       className="tiny"
                       onClick={() => setStage("browse")}
