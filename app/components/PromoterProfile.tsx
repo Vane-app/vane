@@ -30,11 +30,16 @@ export function PromoterProfile({ onDone }: { onDone: () => void }) {
   async function save() {
     setBusy(true);
     try {
-      await fetch("/api/profile", {
-        method: "POST",
+      const res = await fetch("/api/profile", {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ strengths, channels }),
       });
+      // The route only ever accepted PUT, so this posted and got a 405 every time.
+      // The catch below swallowed it, the panel closed, and Browse went on sorting by
+      // "best match" against strengths that were never stored — a preference that
+      // appeared to save and silently did not.
+      if (!res.ok) throw new Error(String(res.status));
     } catch {
       // Failing to save a preference must not block someone from working.
     } finally {

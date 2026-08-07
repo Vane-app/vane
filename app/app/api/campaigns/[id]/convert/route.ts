@@ -43,10 +43,6 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       { status: 409 },
     );
   }
-  if (!userWalletsConfigured || !user.walletId) {
-    return NextResponse.json({ error: "Set up your wallet first.", needsWallet: true }, { status: 409 });
-  }
-
   // The referral being converted. Without one the registry will decline to record and
   // the visitor would approve a transaction that could never pay anyone — better to say
   // so before they sign than to emit NotAttributed and leave them guessing.
@@ -64,6 +60,21 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     // Refusing here costs the person a wasted signature rather than a held payout.
     return NextResponse.json(
       { error: "You can't convert your own referral link." },
+      { status: 409 },
+    );
+  }
+
+  /**
+   * The wallet is asked for last, on purpose.
+   *
+   * Checking it first meant someone who opened a campaign without a referral link was
+   * told to go and set up a wallet — PIN, recovery questions, the whole thing — and
+   * only afterwards learned that the conversion was never going to be attributable to
+   * anyone. The cheap, informative refusals belong before the expensive detour.
+   */
+  if (!userWalletsConfigured || !user.walletId) {
+    return NextResponse.json(
+      { error: "Set up your wallet first — the conversion is your transaction to sign.", needsWallet: true },
       { status: 409 },
     );
   }

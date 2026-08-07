@@ -173,10 +173,23 @@ await check("Posting a campaign", "a business can list work", async () => {
   return `#${campaignId}`;
 });
 
-await check("It reaches the marketplace", "a posted campaign is findable", async () => {
+await check("An unfunded campaign stays out of the marketplace", "nobody can take work that cannot pay", async () => {
+  // This used to assert the opposite. A campaign posted without approving the funding
+  // transactions appeared in the feed with a rate and a budget and no escrow behind
+  // it, so a promoter could take it and share a link no settlement could ever reach.
+  // The suite passed the whole time, because it was checking that the listing showed
+  // up rather than that it meant anything.
   const d = await (await fetch(`${BASE}/api/campaigns`)).json();
-  assert(d.campaigns.some((c) => c.id === campaignId), "the campaign is not in the feed");
-  return `${d.campaigns.length} live`;
+  assert(!d.campaigns.some((c) => c.id === campaignId), "an unfunded campaign is in the public feed");
+  assert(d.campaigns.every((c) => c.escrowCampaignId), "a listed campaign has no escrow behind it");
+  return `${d.campaigns.length} funded and live`;
+});
+
+await check("The owner still sees it", "posting is not lost, it is only unlisted", async () => {
+  const d = await (await biz.fetch("/api/business")).json();
+  assert(d.campaigns.some((c) => c.id === campaignId), "the business cannot see its own campaign");
+  assert(d.locked === 0, `locked reads ${d.locked} for a campaign that was never funded`);
+  return "visible to its owner, locked reads zero";
 });
 
 await check("Campaign detail resolves", "a listing shows its own data", async () => {
@@ -313,7 +326,15 @@ await check("Earnings start empty", "no fabricated balances", async () => {
 });
 
 await check("The falcon's decisions read off Arc", "settlements and refusals come from the chain", async () => {
-  const d = await (await fetch(`${BASE}/api/decisions`)).json();
+  // Arc's public RPC answers -32011 "request limit reached" while the index backfills,
+  // and this check caught whichever run happened to land on one. A rate-limited read is
+  // a busy endpoint, not a broken product — so it is retried once, and only a failure
+  // that survives a second look counts.
+  let d = await (await fetch(`${BASE}/api/decisions`)).json();
+  if (d.error) {
+    await new Promise((r) => setTimeout(r, 3000));
+    d = await (await fetch(`${BASE}/api/decisions`)).json();
+  }
   assert(d.configured, "no escrow configured");
   assert(!d.error, d.error ?? "");
   return d.scanning ? `scanning, ${d.indexed} so far` : `${d.indexed} indexed`;

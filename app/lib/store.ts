@@ -317,11 +317,33 @@ export async function updateUser(id: string, patch: Partial<User>): Promise<User
 
 // ----------------------------------------------------------------- campaigns
 
+/**
+ * What the marketplace shows.
+ *
+ * Active is not the same as fundable. A business could post a campaign, never approve
+ * the two transactions that lock the budget, and the listing appeared anyway — with a
+ * rate, a budget and nothing behind it. A promoter could take it and share a link that
+ * no escrow could ever settle, which is the same dead end from the other side.
+ *
+ * So a campaign reaches the marketplace once Arc says its budget is locked, and not
+ * before. `escrowCampaignId` is only written after `/confirm` has read the escrow back
+ * off the chain, so it is evidence rather than intent.
+ *
+ * Skipped entirely when no escrow is deployed — a local checkout with no contracts has
+ * nothing to confirm against, and an empty marketplace there would be a worse lie than
+ * an unfunded one.
+ */
 export async function listCampaigns(): Promise<Campaign[]> {
-  if (!db) return [...mem().campaigns.values()].filter((c) => c.status === "active");
+  const requireFunding = Boolean(process.env.VANE_ESCROW_ADDRESS);
+
+  if (!db) {
+    return [...mem().campaigns.values()].filter(
+      (c) => c.status === "active" && (!requireFunding || c.escrowCampaignId),
+    );
+  }
   await seedIfEmpty();
   const rows = await db.select().from(schema.campaigns).where(eq(schema.campaigns.status, "active"));
-  return rows.map(toCampaign);
+  return rows.map(toCampaign).filter((c) => !requireFunding || c.escrowCampaignId);
 }
 
 export async function getCampaign(id: number): Promise<Campaign | undefined> {
@@ -533,7 +555,15 @@ export async function businessSummary(userId: string) {
 
   return {
     campaigns,
-    locked: campaigns.reduce((s, c) => s + c.budget, 0),
+    /**
+     * Only budgets Arc has actually locked.
+     *
+     * This summed every campaign's requested budget, so a business that filled in the
+     * form and never approved the two funding transactions saw "$5.00 locked in
+     * escrow" on its dashboard. Nothing was locked. The number a business trusts most
+     * was the one describing money that had not moved.
+     */
+    locked: campaigns.reduce((s, c) => s + (c.escrowCampaignId ? c.budget : 0), 0),
     spent: campaigns.reduce((s, c) => s + c.spent, 0),
     results: takes.reduce((s, t) => s + t.results, 0),
     clicks: takes.reduce((s, t) => s + t.clicks, 0),
