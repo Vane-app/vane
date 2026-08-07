@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { Mark } from "../../components/Falcon";
 import { Back } from "../../components/Back";
-import { CircleLogin } from "../../components/CircleLogin";
+import { EmailStep } from "../../components/EmailStep";
 
 /**
  * Log in — for people who already have an account.
@@ -50,7 +50,7 @@ function LoginForm() {
       </div>
 
       <div className="fade-up d1" style={{ width: "100%", maxWidth: 380 }}>
-        <CircleLogin
+        <EmailStep
           submitLabel="Email me a code"
           onVerified={(user, isNew) => {
             // A brand-new address arriving at the login door still owes us onboarding;

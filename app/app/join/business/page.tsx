@@ -10,7 +10,7 @@ import { OnboardFrame } from "../../../components/Onboard";
 import { WalletStep } from "../../../components/Wallet";
 import { Back } from "../../../components/Back";
 import { useMe } from "../../../components/Me";
-import { CircleLogin } from "../../../components/CircleLogin";
+import { EmailStep } from "../../../components/EmailStep";
 import { INDUSTRIES, usd, type Industry } from "../../../lib/data";
 
 /**
@@ -233,7 +233,7 @@ export default function BusinessOnboarding() {
 
       {step === "verify" && (
         <Panel title="Confirm it's you" sub="A 6-digit code, so nobody else can post campaigns in your name.">
-          <CircleLogin
+          <EmailStep
             role="business"
             profile={{ name, avatar: logo }}
             submitLabel="Email me a code"
