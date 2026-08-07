@@ -65,14 +65,26 @@ export default function PostCampaign() {
       if (!res.ok) throw new Error(data.error ?? "Could not create the campaign.");
 
       if (data.challenges?.length && data.auth) {
-        for (const c of data.challenges) {
-          setLockStep(
+        /**
+         * Three signatures, one after another.
+         *
+         * ERC-20 needs an allowance before the vault can pull, the vault locks the
+         * budget, and the registry has to be told who may report results — each is its
+         * own transaction and each opens Circle's modal. Between them the page showed
+         * through, so funding looked like the screen flickering between a confirmation
+         * and the wallet rather than like three steps in a row.
+         *
+         * Numbered, and the page behind is covered for the whole sequence.
+         */
+        const total = data.challenges.length;
+        for (const [i, c] of data.challenges.entries()) {
+          const what =
             c.step === "approve"
-              ? "Approve the vault…"
+              ? "Approve the vault"
               : c.step === "fund"
-                ? "Lock the budget…"
-                : "Authorise result reporting…",
-          );
+                ? "Lock the budget"
+                : "Authorise result reporting";
+          setLockStep(`Step ${i + 1} of ${total} — ${what}`);
           await approve({ ...data.auth, challengeId: c.challengeId });
         }
 

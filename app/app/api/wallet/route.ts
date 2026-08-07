@@ -35,9 +35,18 @@ export async function GET() {
 
     // Circle is the source of truth for the address; mirror it so the rest of the
     // app can read it without a round-trip.
-    if (session.address && session.address !== user.walletAddress) {
-      await updateUser(userId, { walletAddress: session.address });
-    }
+    /**
+     * Mirror both, not just the address.
+     *
+     * Only the address was stored. Every prepared transaction is addressed to a
+     * walletId, and nothing ever wrote one — so a tasker with a perfectly good wallet
+     * was refused for not having one, and the screen offered to make the wallet they
+     * already had. Finishing that returned them to the same refusal.
+     */
+    const patch: { walletAddress?: string; walletId?: string } = {};
+    if (session.address && session.address !== user.walletAddress) patch.walletAddress = session.address;
+    if (session.walletId && session.walletId !== user.walletId) patch.walletId = session.walletId;
+    if (Object.keys(patch).length) await updateUser(userId, patch);
 
     /**
      * Cover the first transactions.

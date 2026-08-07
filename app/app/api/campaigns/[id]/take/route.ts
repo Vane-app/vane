@@ -42,7 +42,7 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
    * unfunded listing has nothing to seal against, and that is a different situation
    * the response already describes honestly.
    */
-  if (userWalletsConfigured && process.env.VANE_REGISTRY_ADDRESS && campaign.escrowCampaignId && !user.walletId) {
+  if (userWalletsConfigured && process.env.VANE_REGISTRY_ADDRESS && campaign.escrowCampaignId && !user.walletId && !user.walletAddress) {
     return NextResponse.json(
       {
         error: "Set up your wallet first — it's what seals the referral on Arc and receives the payout.",
@@ -65,7 +65,7 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
 
   // Off-chain only: no registry deployed, no Circle, or this campaign was never
   // funded on-chain. Still a valid take — just not a sealed one.
-  if (!userWalletsConfigured || !registry || !chainId || !user.walletId) {
+  if (!userWalletsConfigured || !registry || !chainId || (!user.walletId && !user.walletAddress)) {
     return NextResponse.json({ ...payload, sealed: false });
   }
 
@@ -77,7 +77,9 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
 
     const challengeId = await createContractChallenge({
       userToken: session.userToken,
-      walletId: user.walletId,
+      // Circle's answer wins over ours: an account whose id was never mirrored still
+      // has a wallet, and refusing it would be us failing to write something down.
+      walletId: session.walletId ?? user.walletId,
       contractAddress: registry,
       abiFunctionSignature: "claimCode(uint256,bytes32)",
       abiParameters: [String(chainId), codeHash(take.refCode)],

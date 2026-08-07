@@ -72,7 +72,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
    * only afterwards learned that the conversion was never going to be attributable to
    * anyone. The cheap, informative refusals belong before the expensive detour.
    */
-  if (!userWalletsConfigured || !user.walletId) {
+  if (!userWalletsConfigured || (!user.walletId && !user.walletAddress)) {
     return NextResponse.json(
       { error: "Set up your wallet first — the conversion is your transaction to sign.", needsWallet: true },
       { status: 409 },
@@ -117,7 +117,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
     const challengeId = await createContractChallenge({
       userToken: session.userToken,
-      walletId: user.walletId,
+      walletId: session.walletId ?? user.walletId,
       contractAddress: demo,
       abiFunctionSignature: "convert(bytes32)",
       // The tag the business is paying for, carried through to the decision log.

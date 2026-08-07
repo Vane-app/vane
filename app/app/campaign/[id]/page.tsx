@@ -95,6 +95,12 @@ export default function CampaignPage() {
       const res = await fetch(`/api/campaigns/${id}/take`, { method: "POST" });
       const data = await res.json();
       if (data.needsWallet) {
+        // Guard against asking twice. If setting up a wallet did not change the answer,
+        // retrying puts the same panel back on screen and it reads as a flicker with no
+        // way out — say what happened instead of looping.
+        if (needsWallet) {
+          throw new Error("Your wallet isn't linked to this account yet. Reload and try again.");
+        }
         setNeedsWallet(true);
         return;
       }

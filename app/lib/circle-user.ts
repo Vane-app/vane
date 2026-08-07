@@ -50,6 +50,8 @@ export interface WalletSession {
   /** True once the user has been through the PIN challenge and has a wallet. */
   ready: boolean;
   address?: string;
+  /** Circle's id for the wallet — required to address any transaction to it. */
+  walletId?: string;
 }
 
 /**
@@ -83,16 +85,20 @@ export async function startSession(userId: string): Promise<WalletSession> {
   const encryptionKey = tokenRes.data?.encryptionKey;
   if (!userToken || !encryptionKey) throw new Error("Circle did not return a user session token");
 
-  const { ready, address } = await walletState(userToken);
-  return { userToken, encryptionKey, appId: circleAppId, ready, address };
+  const { ready, address, walletId } = await walletState(userToken);
+  return { userToken, encryptionKey, appId: circleAppId, ready, address, walletId };
 }
 
 /** Whether this user already holds a wallet, and its address if so. */
-export async function walletState(userToken: string): Promise<{ ready: boolean; address?: string }> {
+export async function walletState(
+  userToken: string,
+): Promise<{ ready: boolean; address?: string; walletId?: string }> {
   const c = await client();
   const res = await c.listWallets({ userToken }).catch(() => null);
   const wallet = res?.data?.wallets?.[0];
-  return { ready: Boolean(wallet?.address), address: wallet?.address };
+  // The id matters as much as the address: every prepared transaction is addressed to
+  // a walletId, so a user whose id we never stored cannot sign anything at all.
+  return { ready: Boolean(wallet?.address), address: wallet?.address, walletId: wallet?.id };
 }
 
 /**
