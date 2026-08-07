@@ -85,6 +85,16 @@ const stamp = Date.now();
 const biz = jar();
 const other = jar();
 
+/**
+ * Clean up after ourselves.
+ *
+ * This created a real campaign on every run and left it there. Against production that
+ * meant nine "SmokeCo" listings sitting in the live marketplace, indistinguishable
+ * from real work to anyone browsing. A check that leaves debris in the thing it is
+ * checking is not a check.
+ */
+const cleanup = [];
+
 // ---------------------------------------------------------------- the checks
 
 await check("Configuration", "every key, contract address and the falcon's balance are in place", async () => {
@@ -153,6 +163,13 @@ await check("Posting a campaign", "a business can list work", async () => {
   const d = await res.json();
   assert(res.ok && d.campaign, `posting failed: ${d.error ?? res.status}`);
   campaignId = d.campaign.id;
+  cleanup.push(() =>
+    biz.fetch(`/api/campaigns/${campaignId}/control`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "end" }),
+    }),
+  );
   return `#${campaignId}`;
 });
 
@@ -278,6 +295,11 @@ await check("The falcon's decisions read off Arc", "settlements and refusals com
   assert(!d.error, d.error ?? "");
   return d.scanning ? `scanning, ${d.indexed} so far` : `${d.indexed} indexed`;
 });
+
+// Take the test campaign back out of the marketplace before reporting.
+for (const undo of cleanup) {
+  await undo().catch(() => {});
+}
 
 // ----------------------------------------------------------------- reporting
 

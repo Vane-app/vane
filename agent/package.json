@@ -12,7 +12,8 @@
     "tasker": "tsx src/tasker.ts",
     "nano": "tsx src/nano.ts",
     "typecheck": "tsc --noEmit",
-    "convert": "tsx src/convert.ts"
+    "convert": "tsx src/convert.ts",
+    "seed:live": "tsx src/seed-live.ts"
   },
   "dependencies": {
     "@circle-fin/developer-controlled-wallets": "^10.8.0",
