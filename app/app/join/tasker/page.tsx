@@ -10,7 +10,7 @@ import { OnboardFrame } from "../../../components/Onboard";
 import { WalletStep } from "../../../components/Wallet";
 import { Back } from "../../../components/Back";
 import { useMe } from "../../../components/Me";
-import { EmailStep } from "../../../components/EmailStep";
+import { CircleLogin } from "../../../components/CircleLogin";
 import { INDUSTRIES, type Industry } from "../../../lib/data";
 
 /**
@@ -137,7 +137,7 @@ export default function TaskerOnboarding() {
           title="Let's get you earning"
           sub="Your email, then a 6-digit code to prove it's yours. No password to remember."
         >
-          <EmailStep
+          <CircleLogin
             role="tasker"
             submitLabel="Email me a code"
             onVerified={() => {
