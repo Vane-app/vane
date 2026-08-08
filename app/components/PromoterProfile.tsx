@@ -22,6 +22,16 @@ export function PromoterProfile({ onDone }: { onDone: () => void }) {
   const [strengths, setStrengths] = useState<Industry[]>([]);
   const [channels, setChannels] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
+  /**
+   * Closed until asked for.
+   *
+   * Expanded, this is eleven industries and five channels — on a phone it filled the
+   * entire screen, so someone arriving at the marketplace saw a form and had to scroll
+   * past all of it to reach the first campaign. The marketplace became the prompt.
+   *
+   * It improves what gets recommended; it is not the reason anybody opened the page.
+   */
+  const [open, setOpen] = useState(false);
 
   function toggle<T>(list: T[], v: T, set: (a: T[]) => void) {
     set(list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
@@ -46,6 +56,25 @@ export function PromoterProfile({ onDone }: { onDone: () => void }) {
       setBusy(false);
       onDone();
     }
+  }
+
+  if (!open) {
+    return (
+      <section className="promoprofile fade-up" style={{ padding: "14px 16px" }}>
+        <div className="row" style={{ gap: 12, alignItems: "center" }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <b style={{ display: "block", fontSize: 14.5 }}>What do you promote?</b>
+            <span className="tiny">So the campaigns worth your time come first.</span>
+          </div>
+          <button className="tiny promoprofile-skip" onClick={() => setOpen(true)} style={{ fontWeight: 700, color: "var(--amber)" }}>
+            Set up
+          </button>
+          <button className="tiny promoprofile-skip" onClick={onDone}>
+            Skip
+          </button>
+        </div>
+      </section>
+    );
   }
 
   return (

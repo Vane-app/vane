@@ -74,16 +74,47 @@ export async function startSession(userId: string): Promise<WalletSession> {
   const account = await getUser(userId).catch(() => undefined);
   const circleId = account?.circleUserId ?? userId;
 
-  try {
-    await c.createUser({ userId: circleId });
-  } catch {
-    // Already exists. The only way to know is to try, and a second signup is normal.
+  /**
+   * Only create the Circle user when there might not be one.
+   *
+   * This ran on every single request that touched a wallet — taking a campaign,
+   * converting, funding — and for anyone who already had a wallet it was a round trip
+   * to Circle whose only possible outcome was a rejection we ignore. Three sequential
+   * calls where two would do, on the exact paths where someone is watching a button
+   * and wondering whether they pressed it.
+   *
+   * An address on the account means Circle already knows this person.
+   */
+  if (!account?.walletAddress) {
+    try {
+      await c.createUser({ userId: circleId });
+    } catch {
+      // Already exists. The only way to know is to try, and a second signup is normal.
+    }
   }
 
   const tokenRes = await c.createUserToken({ userId: circleId });
   const userToken = tokenRes.data?.userToken;
   const encryptionKey = tokenRes.data?.encryptionKey;
   if (!userToken || !encryptionKey) throw new Error("Circle did not return a user session token");
+
+  /**
+   * Skip listing the wallets when we already know them.
+   *
+   * The address and id are mirrored on the account, so asking Circle to confirm what we
+   * already wrote down costs a round trip and can only agree. Anyone mid-onboarding —
+   * where the answer genuinely changes — still gets the live read.
+   */
+  if (account?.walletAddress && account?.walletId) {
+    return {
+      userToken,
+      encryptionKey,
+      appId: circleAppId,
+      ready: true,
+      address: account.walletAddress,
+      walletId: account.walletId,
+    };
+  }
 
   const { ready, address, walletId } = await walletState(userToken);
   return { userToken, encryptionKey, appId: circleAppId, ready, address, walletId };
