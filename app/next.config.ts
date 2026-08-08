@@ -14,6 +14,19 @@ loadEnv({ path: join(process.cwd(), "..", ".env") });
 
 const nextConfig: NextConfig = {
   /**
+   * Pin a browser to the build it loaded.
+   *
+   * A tab open across a deployment ends up running JavaScript that no longer matches
+   * the server. When that happens a Link click can fall out of client-side routing and
+   * navigate straight at the React payload, which is served as text/x-component — a
+   * type no browser renders, so it downloads instead. Someone pressing "Get started"
+   * gets a file, which is about the worst possible first impression.
+   *
+   * Stamping the deployment id makes those requests resolve against the build the page
+   * came from, so a deploy mid-session stops being the visitor's problem.
+   */
+  deploymentId: process.env.VERCEL_DEPLOYMENT_ID,
+  /**
    * The falcon's judgement ships as TypeScript source from the agent workspace.
    *
    * Settlement has to run somewhere that is awake when a judge is clicking, and the
