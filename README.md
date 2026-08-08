@@ -41,6 +41,7 @@ business funds a campaign  →  tasker claims a referral code  →  referred use
 | `contracts/src/ReferralRegistry.sol` | On-chain attribution. One-shot, permanent referral seals. |
 | `agent/src/decision.ts` | The falcon's judgement — the fraud engine. |
 | `agent/src/index.ts` | Watches Arc, judges conversions, settles or holds. |
+| `agent/src/pass.ts` | The same judgement as one stateless pass, so a deployment can settle without a daemon. Imported by `/api/cron/settle`. |
 | `agent/src/signals.ts` | Reads on-chain evidence from Arc. |
 | `agent/src/circle/` | Circle Wallets, Smart Contract Platform, agent-to-agent payments. |
 | `agent/src/demo.ts` | The decision engine, runnable offline in 5 seconds. |
@@ -71,13 +72,29 @@ Run the live agent:
 npm run agent
 ```
 
+## Trying the deployed app
+
+**[vane-phi.vercel.app](https://vane-phi.vercel.app)** — Arc testnet, so the USDC is test USDC. Everything else is real.
+
+Two browsers, because nobody may convert their own referral link.
+
+1. **Sign in.** A six-digit code by email. Or *"look around with a guest account"* — an address at `demo.vane`, which is not a real TLD and can receive no mail, so the code is shown on screen. Every guest gets their own account and their own wallet; a shared one would die at the first PIN, since Circle's keyshare belongs to whoever set it.
+2. **Create a wallet.** The PIN is set inside Circle's window. Vane never sees it and cannot complete this step for anyone.
+3. **Take a campaign.** This claims a referral code in `ReferralRegistry` — the tasker's transaction, signed with their PIN. Refused without a wallet, because a referral nobody can seal is a referral nobody can be paid for.
+4. **Open the link in the second browser**, sign in, and complete the action. That calls `DemoBusiness.convert`, which stands in for the business's own product: in production the business's backend or contract reports the result. The transaction, the events and everything after them are production code.
+5. **Watch the verdict.** Risk score, reason, and every signal the falcon weighed — then USDC moves from escrow to the tasker.
+
+Only funded campaigns appear in the marketplace. A campaign whose budget was never locked on Arc stays visible to its owner and nowhere else, so nothing in the feed can fail to pay.
+
+Settlement runs from `/api/cron/settle`, triggered by the conversion that needs it and by a daily cron as a backstop. It holds no state between runs — a claim's idempotency key is derived from campaign, wallet and action index, so re-reading a block window is free of consequence and can never pay twice.
+
 ## Circle and Arc stack
 
 | Product | How Vane uses it |
 |---|---|
 | **Arc** | All contracts and settlement. Chain `5042002`, USDC-denominated gas, sub-second finality. |
 | **USDC** | Campaign budgets, payouts, fees. Held in the 6-decimal ERC-20 view throughout. |
-| **Circle Wallets** (user-controlled) | Taskers and businesses. Non-custodial MPC — Vane cannot move their funds. PIN or social login at signup, no seed phrases, ever. |
+| **Circle Wallets** (user-controlled) | Taskers and businesses. Non-custodial MPC — Vane cannot move their funds. A PIN set inside Circle's own window, never seen by us, and no seed phrases ever. Circle's email OTP is implemented in `app/lib/circle-user.ts` and `CircleLogin.tsx`; sign-in currently uses Vane's own codes, one switch away. |
 | **Circle Wallets** (developer-controlled) | The falcon's own operating wallet only. It must act autonomously, and it holds no user money. |
 | **Circle Smart Contract Platform** | Deploys and reads the vault and registry. No private key on disk. |
 | **Circle Compliance Engine** | Address screening inside the falcon's judgement. Answers the half our own engine cannot: heuristics tell a farm from an audience, but only a registry knows an address is sanctioned. A prohibited match is a gate, not a score — no amount of genuine-looking behaviour makes it payable. Live on `ARC-TESTNET`. |
@@ -125,7 +142,7 @@ Deterministic checks decide the overwhelming majority of cases, which keeps cost
 
 ## Business model
 
-**8% of settled results. The only fee Vane takes.** No listing fees, no subscriptions, no payout fees, no spread.
+**2.5% of settled results. The only fee Vane takes.** No listing fees, no subscriptions, no payout fees, no spread.
 
 - Taskers keep 100% of the posted rate. The number on the card is the number that lands.
 - The fee is charged to the business, on settled results only, and is enforced in the contract with a hard 10% ceiling.
