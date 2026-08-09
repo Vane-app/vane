@@ -156,11 +156,15 @@ export function Shell({ children }: { children: React.ReactNode }) {
         router.push("/join/business");
         return;
       }
-      await fetch("/api/me/side", {
+      // Navigating on the strength of a request that may not have landed puts someone
+      // on a side their account does not have, where the guard sends them straight back
+      // out again. Confirm first, and stay put if it failed.
+      const added = await fetch("/api/me/side", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ side: "tasker" }),
-      }).catch(() => {});
+      }).catch(() => null);
+      if (!added?.ok) return;
       await refresh();
     }
 

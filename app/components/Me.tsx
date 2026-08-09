@@ -29,9 +29,23 @@ export function useMe() {
   const [me, setMe] = useState<Me | null>(null);
   const [loading, setLoading] = useState(true);
 
-  /** Re-read the account, after something changes it — adding a side, say. */
+  /**
+   * Re-read the account, after something changes it — adding a side, say.
+   *
+   * Only a clean answer is allowed to clear the account. This used to accept anything
+   * it could parse, and `loading` is set false once at mount and never again — so a
+   * single hiccup on the way back, a cold start or a blip mid-navigation, left `me`
+   * null with nothing marking it as unknown. The Shell reads that as signed out and
+   * replaces the page with the login screen.
+   *
+   * Switching between earning and advertising calls this, which is why that switch
+   * threw people to login: nothing was wrong with their session, one request just
+   * failed to answer in time.
+   */
   const refresh = useCallback(async () => {
-    const d = await fetch("/api/me").then((r) => r.json()).catch(() => null);
+    const res = await fetch("/api/me").catch(() => null);
+    if (!res || !res.ok) return;
+    const d = await res.json().catch(() => null);
     if (d) setMe(d.user ?? null);
   }, []);
 
@@ -43,7 +57,8 @@ export function useMe() {
         if (live) setMe(d.user ?? null);
       })
       .catch(() => {
-        // Not being signed in is the normal case, not an error worth surfacing.
+        // A failed request is not a signed-out user. Leaving `me` as it is keeps the
+        // Shell from redirecting on the strength of a network error.
       })
       .finally(() => {
         if (live) setLoading(false);
