@@ -98,8 +98,7 @@ Settlement runs from `/api/cron/settle`, triggered by the conversion that needs 
 | **Circle Wallets** (developer-controlled) | The falcon's own operating wallet only. It must act autonomously, and it holds no user money. |
 | **Circle Smart Contract Platform** | Deploys and reads the vault and registry. No private key on disk. |
 | **Circle Compliance Engine** | Address screening inside the falcon's judgement. Answers the half our own engine cannot: heuristics tell a farm from an audience, but only a registry knows an address is sanctioned. A prohibited match is a gate, not a score — no amount of genuine-looking behaviour makes it payable. Live on `ARC-TESTNET`. |
-| **Circle Paymaster** | *Not used.* User wallets are `EOA`, chosen so Gateway/Nanopayments stays open; Paymaster sponsorship needs `SCA`. A deliberate trade, not an oversight. |
-| **Circle Nanopayments** (Gateway) | Gas-free USDC down to $0.000001 via x402 + EIP-3009, batched offchain. Arc Testnet supported, and user-controlled wallets are `EOA` specifically so this stays open. *Spec'd in `ROUTE.md` §7b, not yet built.* |
+| **Circle Nanopayments** (Gateway) | Gas-free USDC down to $0.000001 via x402 + EIP-3009, batched offchain. Supported on Arc Testnet, and user wallets are `EOA` so it stays available. *Spec'd in `ROUTE.md` §7b, not yet built.* |
 | **`settleBatch`** | Our own on-chain batching in `VaneEscrow.sol`. Not a Circle product — many escrow payouts amortised into one transaction. Proven: 12 sub-cent payouts, one transaction. |
 | **CCTP** | Arc domain `26`. Cross-chain campaign funding — designed for, deliberately not in the MVP. |
 

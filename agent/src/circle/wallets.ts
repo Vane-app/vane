@@ -57,7 +57,7 @@ export async function createUserWallet(refId: string, walletSetId = config.circl
     walletSetId,
     blockchains: [config.circleBlockchain as never],
     count: 1,
-    accountType: "SCA", // smart contract account — required for Paymaster gas sponsorship
+    accountType: "SCA", // the falcon's own operating wallet; user wallets are EOA (app/lib/circle-user.ts)
     metadata: [{ refId }], // maps the wallet back to our own user record
     idempotencyKey: randomUUID(),
   });

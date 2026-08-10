@@ -31,10 +31,11 @@ const BLOCKCHAIN = process.env.CIRCLE_BLOCKCHAIN ?? "ARC-TESTNET";
 /**
  * EOA rather than SCA.
  *
- * Circle Gateway — the rail behind Nanopayments — requires an externally owned
- * account, and gas-free sub-cent payouts matter more to Vane than the Paymaster
- * sponsorship SCA would unlock. Arc Testnet supports both; this is a deliberate pick,
- * not a default. Changing it later means new wallets, so it is deliberate here.
+ * Circle Gateway — the rail behind Nanopayments — requires an externally owned account,
+ * and gas-free sub-cent payouts are on Vane's path: streaming rev-share pays fractions
+ * of a cent, which only works if the transfer costs less than the transfer. Arc Testnet
+ * supports both account types, so this is a deliberate pick rather than a default, and
+ * changing it later would mean new wallets for everybody.
  */
 const ACCOUNT_TYPE = "EOA" as const;
 
