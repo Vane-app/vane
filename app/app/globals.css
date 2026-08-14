@@ -114,11 +114,27 @@ input {
   color: #fff;
 }
 
+/*
+  Hard right, at every width.
+
+  Nothing was holding these against the edge — `.hp-links` carries the `flex: 1` that
+  pushes them there, and it is hidden below 900px. So on a phone the two controls packed
+  in behind the wordmark and left a third of the bar empty to their right, which reads as
+  a mistake rather than a layout.
+*/
+.hp-actions {
+  margin-left: auto;
+}
+
 .hp-login {
   font-size: 14px;
   font-weight: 600;
   color: #aab6be;
   padding: 10px 14px;
+  /* A thumb needs somewhere to land, and this is one of two ways into the product. */
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
 }
 
 .hp-login:hover {
@@ -135,6 +151,9 @@ input {
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
   transition: background 0.2s var(--ease);
   white-space: nowrap;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
 }
 
 .hp-getstarted:hover {
@@ -166,6 +185,22 @@ input {
   margin: 22px 0 0;
   font-size: 13.5px;
   color: #7f8b93;
+}
+
+/*
+  A little further from the button on a laptop.
+
+  Deliberately spacing above the line rather than pulling the photograph up to meet it:
+  the image is offset from the bottom of the hero, so adding room here moves the line and
+  the photograph together and leaves the fee line sitting exactly where it does now
+  against the picture. Pulling the image up instead would slide the copy down the image
+  toward the balance figure, which is the collision this file already fixed once on
+  narrow screens.
+*/
+@media (min-width: 861px) {
+  .hp-feeline {
+    margin-top: 40px;
+  }
 }
 
 .hp-feeline b {
@@ -327,13 +362,20 @@ input {
       dollar figures, and pulling back far enough to fix that detached the image
       entirely so it read as a picture dragged in underneath.
 
-      -62vw is about 39% down the image on any screen. The mask is transparent above
-      16% and only turns solid past 47%, so the copy lands on the glow and the phone's
-      top edge — overlapping, as intended, without ever touching the subject. The
-      remaining eight points are the whole safety margin: past 47% the text would be
-      over the phone's screen again, and no amount of tightening is worth that.
+      -62vw put the fee line about 39% down the image, which was reasoned to be safe
+      because the mask only turns solid past 47%. In practice the balance — the largest
+      figure on the phone's screen — sits higher than that, and "businesses pay 2.5% on
+      settled results" was being read straight across $2,847.50.
+
+      -42vw is about 27% down instead. The overlap is the point and stays: the copy
+      still sits on the photograph, on its glow and the phone's top edge. It just stops
+      short of the screen the phone is showing, which is the one part of the image that
+      is itself made of words and numbers and cannot survive text on top of it.
+
+      Checked in a browser at 360, 390 and 412 wide rather than reasoned about — the
+      previous value was arrived at by arithmetic that was sound and still wrong.
     */
-    margin-top: -62vw;
+    margin-top: -42vw;
   }
 
   .hp-feeline {
@@ -341,6 +383,17 @@ input {
        width to force this pushed it to three, which was worse than the orphan. */
     margin-top: 22px;
     text-wrap: balance;
+  }
+
+  /* The hero opened with a tenth of the viewport in empty space. On a tall phone that is
+     most of a thumb's reach spent before the first word, and it pushed the fee line
+     further down the photograph for no gain. */
+  .hp-hero-c {
+    padding-top: clamp(26px, 4.5vh, 56px);
+  }
+
+  .hp-kicker {
+    margin-bottom: 18px;
   }
 }
 

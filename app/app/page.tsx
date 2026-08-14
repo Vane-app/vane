@@ -67,7 +67,7 @@ export default function Homepage() {
           <a href="#how">How it works</a>
           <a href="#faq">FAQ</a>
         </nav>
-        <div className="row" style={{ gap: 8 }}>
+        <div className="row hp-actions" style={{ gap: 8 }}>
           <Link href="/login" className="hp-login">
             Log in
           </Link>
