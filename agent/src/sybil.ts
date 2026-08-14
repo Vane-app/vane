@@ -4,7 +4,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { keccak256, toBytes, erc20Abi } from "viem";
 import { config, USDC_ADDRESS, formatUsdc } from "./config.js";
-import { publicClient, walletSignals, withRetry } from "./signals.js";
+import { publicClient, walletSignals, withRetry, readTaskerOfCode } from "./signals.js";
 import { evaluate, detectCluster, type ConversionClaim, type TaskerSignals } from "./decision.js";
 import { createUserWallet, executeContract, waitForTransaction, getBalance } from "./circle/wallets.js";
 
@@ -152,20 +152,7 @@ async function main() {
 
   console.log("\n── 2. The tasker claims a code ──────────────────────");
   const code = keccak256(toBytes(`vane-sybil-${campaignId}`));
-  const existing = (await withRetry(() => publicClient.readContract({
-    address: registry as `0x${string}`,
-    abi: [
-      {
-        type: "function",
-        name: "taskerOfCode",
-        stateMutability: "view",
-        inputs: [{ type: "bytes32" }],
-        outputs: [{ type: "address" }],
-      },
-    ] as const,
-    functionName: "taskerOfCode",
-    args: [code],
-  }))) as string;
+  const existing = await readTaskerOfCode(registry as `0x${string}`, campaignId, code);
 
   if (existing.toLowerCase() === farm.tasker.address.toLowerCase()) {
     console.log("  code already claimed by this tasker");

@@ -1,5 +1,12 @@
 import { config } from "./config.js";
-import { publicClient, walletSignals, taskerSignals, sealsForTasker } from "./signals.js";
+import {
+  publicClient,
+  walletSignals,
+  taskerSignals,
+  sealsForTasker,
+  taskerRecord,
+  distinctFunders,
+} from "./signals.js";
 import { registryAbi } from "./abi.js";
 import { evaluate, detectCluster, type ConversionClaim, type Decision } from "./decision.js";
 import { executeContract, waitForTransaction } from "./circle/wallets.js";
@@ -46,17 +53,31 @@ export interface PassResult {
  * Derive a tasker's record from the chain rather than from memory.
  *
  * The daemon accumulates history as it observes conversions, which a cron cannot do —
- * it wakes with no idea what it saw last time. Reading the seals back gives the same
- * numbers to whoever asks, which is also the more honest source: two agents watching
- * the same chain now reach the same verdict.
+ * it wakes with no idea what it saw last time. Reading it back off the chain gives the
+ * same numbers to whoever asks, which is also the more honest source: two agents
+ * watching the same chain now reach the same verdict.
+ *
+ * Everything here was previously stubbed or misread, and every stub failed *open* — the
+ * velocity, reputation and funding-concentration checks all silently scored zero in the
+ * deployed settler while the demo scripts, which pass real numbers, showed all eight
+ * signals working. The engine was never the problem; nothing was feeding it.
  */
 async function historyFromChain(campaignId: bigint, tasker: `0x${string}`) {
   const seals = await sealsForTasker(campaignId, tasker).catch(() => []);
   const now = Math.floor(Date.now() / 1000);
-  const recent = seals
-    .map((s) => Number((s as { at?: bigint }).at ?? 0))
-    .filter((t) => t > 0 && now - t < 3600);
-  return { seals, referred: seals.length, lastHour: recent.length };
+
+  // `sealedAt` is the field these carry. Reading a `.at` that was never on the object
+  // meant every timestamp became 0, every one was filtered out as falsy, and the
+  // velocity check saw an empty list however fast a tasker was actually going.
+  const lastHour = seals.filter((s) => s.sealedAt > 0 && now - s.sealedAt < 3600).length;
+
+  const wallets = seals.map((s) => s.wallet);
+  const [record, funders] = await Promise.all([
+    taskerRecord(campaignId, tasker, wallets).catch(() => ({ settled: 0, held: 0 })),
+    distinctFunders(wallets).catch(() => 0),
+  ]);
+
+  return { seals, referred: seals.length, lastHour, record, funders };
 }
 
 async function judge(
@@ -71,15 +92,21 @@ async function judge(
   // engine could never compute for itself.
   wallet.compliance = await screenAddress(claim.wallet);
 
-  const { seals, referred, lastHour } = await historyFromChain(claim.campaignId, tasker);
+  const { seals, referred, lastHour, record, funders } = await historyFromChain(
+    claim.campaignId,
+    tasker,
+  );
   const cluster = detectCluster(seals);
 
   const signals = await taskerSignals(claim.campaignId, tasker, {
-    settled: 0,
-    held: 0,
+    settled: record.settled,
+    held: record.held,
     lastHour,
     referred,
-    funders: Math.max(1, referred),
+    // Zero means "we could not find out", and the engine skips the concentration ratio
+    // rather than computing one from a placeholder. Never substitute a number here that
+    // happens to land on the safe side of the threshold.
+    funders,
   });
 
   const decision = evaluate(claim, wallet, signals, claim.observedAt);

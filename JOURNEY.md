@@ -101,23 +101,32 @@ their reputation for the next one.
 
 ---
 
-## What is real vs placeholder today
+## What is real today
 
-**Real:** the escrow contract, the referral registry, the agent's fraud engine
-(all compile and run), the full front-end journey as clickable screens.
+Every step above runs against Arc testnet. The five items this section once listed as
+the gap to a working product are all closed:
 
-**Placeholder:** every business, balance, click, payout and quote is hardcoded.
-There is no real sign-up, no login, no database, no wallet creation, and the
-contracts are not deployed or connected to the app.
+- **Contracts are deployed and verified** on Arc — escrow, registry and a demo business,
+  with addresses and a first settlement in the README.
+- **Sign-up is real** for both roles: a six-digit code by email, then a user-controlled
+  Circle wallet whose PIN is set inside Circle's own window and never reaches Vane.
+- **Postgres holds** users, businesses, campaigns, takes, conversions and decisions,
+  with an in-memory fallback so the app still runs with no `DATABASE_URL`.
+- **The take-flow and post-flow sign real transactions.** Taking a campaign claims a
+  referral code in the registry; funding a campaign locks USDC in the escrow. Both are
+  the user's own transaction, signed with their PIN.
+- **The falcon settles from `/api/cron/settle`**, triggered by the conversion that needs
+  it and by a daily cron as a backstop, judging with the same `evaluate` the standalone
+  agent runs.
 
-**The gap to a working product**, in order:
-1. Deploy the contracts to Arc testnet.
-2. Real sign-up for each role, creating a Circle wallet.
-3. A database for users, campaigns, referrals, results.
-4. Wire the take-flow and post-flow to the real contracts.
-5. The agent, running as a service, settling real conversions.
+**Still placeholder:** the seeded starter campaigns that belong to nobody, and
+`DemoBusiness.convert` standing in for a business's own product — in production the
+business's backend or contract reports the result. Everything after that call is
+production code.
 
-Everything visual is in place to hang the real plumbing onto.
+**Not built, and not claimed:** Circle Nanopayments for streaming rev-share (spec'd in
+`ROUTE.md` §7b), conversion intake wired to the live registry, and Tier 3
+judgement-based work.
 
 ---
 

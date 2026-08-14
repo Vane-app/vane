@@ -11,6 +11,7 @@
     "deploy": "tsx scripts/deploy.ts",
     "deploy:viem": "tsx scripts/deploy-viem.ts",
     "verify": "tsx scripts/verify.ts",
+    "test": "tsx scripts/registry-test.ts",
     "e2e": "tsx scripts/e2e.ts"
   },
   "dependencies": {

@@ -15,10 +15,13 @@ contract ReferralRegistry {
 
     /// @notice campaignId => tasker => referral code
     mapping(uint256 => mapping(address => bytes32)) public codeOf;
-    /// @notice referral code => tasker (global, codes are unique)
-    mapping(bytes32 => address) public taskerOfCode;
-    /// @notice campaignId => code => true once claimed
-    mapping(uint256 => mapping(bytes32 => bool)) public codeTaken;
+    /// @notice campaignId => referral code => tasker
+    /// @dev Scoped to the campaign, deliberately. An earlier version kept this global
+    ///      while enforcing uniqueness per campaign, which let anyone re-claim a live
+    ///      code under a *different* campaign id and overwrite its owner here — every
+    ///      wallet sealed through the victim's link afterwards resolved to the thief.
+    ///      Ownership now lives at the same scope as the seal that reads it.
+    mapping(uint256 => mapping(bytes32 => address)) public taskerOfCode;
 
     /// @notice campaignId => converting wallet => attribution
     mapping(uint256 => mapping(address => Attribution)) public attributionOf;
@@ -64,11 +67,16 @@ contract ReferralRegistry {
     }
 
     /// @notice A tasker claims a referral code for a campaign. Free, permissionless, one per tasker.
+    /// @dev Re-claiming a code you already hold succeeds and changes nothing. The take-flow
+    ///      hands the tasker a challenge to sign, and a challenge that fails or is dismissed
+    ///      leaves them holding the campaign with nothing sealed — so retrying is the normal
+    ///      path, not an error. Only a code held by someone else is refused.
     function claimCode(uint256 campaignId, bytes32 code) external {
-        if (codeTaken[campaignId][code]) revert CodeAlreadyTaken();
-        codeTaken[campaignId][code] = true;
+        address held = taskerOfCode[campaignId][code];
+        if (held == msg.sender) return;
+        if (held != address(0)) revert CodeAlreadyTaken();
         codeOf[campaignId][msg.sender] = code;
-        taskerOfCode[code] = msg.sender;
+        taskerOfCode[campaignId][code] = msg.sender;
         emit CodeClaimed(campaignId, msg.sender, code);
     }
 
@@ -78,7 +86,7 @@ contract ReferralRegistry {
     ///      makes after-the-fact attribution rewriting impossible.
     function sealReferral(uint256 campaignId, address wallet, bytes32 code) external {
         if (attributionOf[campaignId][wallet].tasker != address(0)) revert AlreadySealed();
-        address tasker = taskerOfCode[code];
+        address tasker = taskerOfCode[campaignId][code];
         if (tasker == address(0)) revert UnknownCode();
         attributionOf[campaignId][wallet] = Attribution({tasker: tasker, sealedAt: uint64(block.timestamp)});
         emit WalletSealed(campaignId, wallet, tasker, code);

@@ -58,6 +58,15 @@ npm run demo
 
 You will see four scenarios judged: a real referral paid, a sybil farm refused with seven reasons, a brand-new tasker correctly *not* punished for being new, and a wallet cluster flagged by pattern.
 
+The contracts are tested on a throwaway local chain — no keys, no testnet USDC, no Circle
+account. It deploys the escrow and registry, runs the referral-hijack attack against
+them, and settles a verified result end to end:
+
+```bash
+anvil &                              # any local EVM on :8545
+npm run test -w @vane/contracts
+```
+
 Compile and deploy the contracts to Arc:
 
 ```bash
@@ -161,9 +170,10 @@ Deterministic checks decide the overwhelming majority of cases, which keeps cost
 - [x] User-controlled wallets: taskers and businesses hold their own keys, and sign their own on-chain actions
 - [x] The falcon's real decisions read off Arc and shown in the app, each linking to its transaction
 - [x] Campaigns posted in the app bind to their on-chain escrow id, and confirm against the chain
+- [x] Deployed publicly — [vane-phi.vercel.app](https://vane-phi.vercel.app), settling from a cron on Arc
 - [ ] Circle Nanopayments for streaming rev-share campaigns
 - [ ] Conversion intake wired to the live registry
-- [ ] Deployed publicly
+- [ ] A durable decision index, so the dashboard survives a cold start without re-scanning
 
 ## Network
 
@@ -181,12 +191,15 @@ Live on Arc testnet. `npm run verify -w @vane/contracts` reads them back and che
 
 | Contract | Address |
 |---|---|
-| `VaneEscrow` | [`0x1854ab4ef121e5c0adc0939ecc6fa55ea0b098a2`](https://testnet.arcscan.app/address/0x1854ab4ef121e5c0adc0939ecc6fa55ea0b098a2) |
-| `ReferralRegistry` | [`0x7b4422c2186aa7a30b24ef61f26bd833de639bc8`](https://testnet.arcscan.app/address/0x7b4422c2186aa7a30b24ef61f26bd833de639bc8) |
-| `DemoBusiness` | [`0xfc2914b40360d0a33d5a45438b287683ddb20bbf`](https://testnet.arcscan.app/address/0xfc2914b40360d0a33d5a45438b287683ddb20bbf) |
+| `VaneEscrow` | [`0xbd0e454eae86cc605f9e1fe68dc238547a568b2f`](https://testnet.arcscan.app/address/0xbd0e454eae86cc605f9e1fe68dc238547a568b2f) |
+| `ReferralRegistry` | [`0xdbc26d63000774e913938d87264e4d3d699a1463`](https://testnet.arcscan.app/address/0xdbc26d63000774e913938d87264e4d3d699a1463) |
+| `DemoBusiness` | [`0xa2e7cb4385d8f1fa77a8c33ff294b67b7728b900`](https://testnet.arcscan.app/address/0xa2e7cb4385d8f1fa77a8c33ff294b67b7728b900) |
 | The falcon | [`0xc1a6d325c91bff08906acee76023effc7f70a5ed`](https://testnet.arcscan.app/address/0xc1a6d325c91bff08906acee76023effc7f70a5ed) |
 
-First settlement: [`0xdca9a49b…c78d68`](https://testnet.arcscan.app/tx/0xdca9a49b222cf9b3e83964fa3b3ea61705de7446c43fe1c67dfbec2776c78d68) — $0.50 to the tasker, $0.0125 fee, against a referral sealed on-chain before the conversion.
+First settlement on this deployment:
+[`0x38f197dc…eccf`](https://testnet.arcscan.app/tx/0x38f197dccc0b6a7b4973518f7c94d7439eb6fbc604ae92132f8edd2a37eccfb6)
+— $0.50 to the tasker, $0.0125 fee, against a referral sealed on-chain before the
+conversion.
 
 ## Run it against the live chain
 

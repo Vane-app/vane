@@ -4,7 +4,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { keccak256, toBytes, erc20Abi } from "viem";
 import { config, USDC_ADDRESS, formatUsdc } from "./config.js";
-import { publicClient, walletSignals, withRetry } from "./signals.js";
+import { publicClient, walletSignals, withRetry, readTaskerOfCode } from "./signals.js";
 import { evaluate, type ConversionClaim, type TaskerSignals } from "./decision.js";
 import { createUserWallet, executeContract, waitForTransaction, getBalance, transferUsdc } from "./circle/wallets.js";
 
@@ -207,22 +207,7 @@ async function main() {
 
   console.log("\n── 3. It claims a referral code ─────────────────────");
   const code = keccak256(toBytes(`vane-tasker-${campaign.id}`));
-  const claimed = (await withRetry(() =>
-    publicClient.readContract({
-      address: registry as `0x${string}`,
-      abi: [
-        {
-          type: "function",
-          name: "taskerOfCode",
-          stateMutability: "view",
-          inputs: [{ type: "bytes32" }],
-          outputs: [{ type: "address" }],
-        },
-      ] as const,
-      functionName: "taskerOfCode",
-      args: [code],
-    }),
-  )) as string;
+  const claimed = await readTaskerOfCode(registry as `0x${string}`, campaign.id, code);
 
   if (claimed.toLowerCase() === worker.agent.address.toLowerCase()) {
     console.log("  code already held by this agent");
