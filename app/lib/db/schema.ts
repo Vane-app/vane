@@ -147,6 +147,49 @@ export const decisions = pgTable("decisions", {
 });
 
 /**
+ * The falcon's decisions, as read off Arc.
+ *
+ * These are not written by the app — they are `Settled` and `Held` events on the
+ * escrow, indexed so the dashboard does not have to re-read the chain to show them.
+ * Kept apart from `decisions` above, which records what the app itself decided: this
+ * table is a cache of public facts and can be dropped and rebuilt at any time.
+ *
+ * The primary key is the same string the in-memory index dedupes on, so re-reading an
+ * overlapping block window is free of consequence.
+ */
+export const chainDecisions = pgTable("chain_decisions", {
+  key: text("key").primaryKey(),
+  /** Which escrow this came from, so a redeployed contract starts a clean set. */
+  escrow: text("escrow").notNull(),
+  verdict: text("verdict").notNull(), // settled | held
+  campaignId: integer("campaign_id").notNull(),
+  wallet: text("wallet").notNull(),
+  /** Present on Settled, which indexes the tasker. Held records only the wallet. */
+  tasker: text("tasker").default(""),
+  actionIndex: integer("action_index").notNull(),
+  /** USDC base units. Text, because these are uint256 on chain. */
+  amount: text("amount").default(""),
+  reason: text("reason").notNull().default(""),
+  txHash: text("tx_hash").notNull(),
+  blockNumber: bigint("block_number", { mode: "number" }).notNull(),
+});
+
+/**
+ * How far the indexer has read, per escrow.
+ *
+ * Without this the scan lived in module memory, so every cold start threw the work
+ * away and walked the chain again from the head. Arc produces sub-second blocks, which
+ * makes that walk grow by roughly 160,000 blocks a day — fast on the morning a contract
+ * is deployed and minutes long a fortnight later.
+ */
+export const chainScan = pgTable("chain_scan", {
+  escrow: text("escrow").primaryKey(),
+  oldestScanned: bigint("oldest_scanned", { mode: "number" }),
+  newestScanned: bigint("newest_scanned", { mode: "number" }),
+  complete: boolean("complete").notNull().default(false),
+});
+
+/**
  * One-time login codes.
  *
  * Sign-in used to be "type an email, you're in" — any email, including someone

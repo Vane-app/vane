@@ -1,4 +1,6 @@
 import { createPublicClient, http, defineChain, parseAbi } from "viem";
+import { and, desc, eq } from "drizzle-orm";
+import { db, schema } from "./db/client";
 
 /**
  * Reading Arc from the app.
@@ -159,16 +161,21 @@ export interface Decision {
  * one ordered list rather than the refusals being tucked away somewhere.
  */
 /**
- * A small in-process index of the agent's decisions.
+ * An index of the agent's decisions, durable when there is a database.
  *
- * Arc produces sub-second blocks, so the escrow's first settlements already sit
- * ~700,000 blocks behind the head — 77 windows of `eth_getLogs` against a rate-limited
- * RPC, which is minutes, not a page load. So the scan happens once in the background,
- * walking backwards from the head so the newest decisions land first, and every later
- * request only catches up the blocks produced since.
+ * Arc produces sub-second blocks, so an escrow's first settlements fall behind the head
+ * by roughly 160,000 blocks a day. Reading that range is many windows of `eth_getLogs`
+ * against a rate-limited RPC — fine on the morning a contract is deployed, minutes long
+ * a fortnight later.
  *
- * This is the honest shape of the problem rather than a workaround: a real deployment
- * runs an indexer, and this is the smallest thing that behaves like one.
+ * The scan used to live only in module memory, which meant every serverless cold start
+ * threw the work away and walked the chain again. Now each window is written to Postgres
+ * as it is read, and how far the scan has reached is recorded beside it, so the walk
+ * happens once ever rather than once per instance. Requests read rows; only blocks
+ * produced since the last pass are fetched.
+ *
+ * Without `DATABASE_URL` the same structure runs in memory, so the demo still works with
+ * no database — it just re-scans when the process restarts.
  */
 const index: {
   rows: Decision[];
@@ -177,7 +184,98 @@ const index: {
   newestScanned: bigint | null;
   running: boolean;
   complete: boolean;
-} = { rows: [], seen: new Set(), oldestScanned: null, newestScanned: null, running: false, complete: false };
+  /** Which escrow the in-memory state belongs to; a redeploy resets it. */
+  escrow: string | null;
+  /** Whether persisted state has been read into this process yet. */
+  hydrated: boolean;
+} = {
+  rows: [],
+  seen: new Set(),
+  oldestScanned: null,
+  newestScanned: null,
+  running: false,
+  complete: false,
+  escrow: null,
+  hydrated: false,
+};
+
+/** Forget everything when the configured escrow changes under us. */
+function resetFor(escrow: string) {
+  if (index.escrow === escrow) return;
+  index.rows = [];
+  index.seen = new Set();
+  index.oldestScanned = null;
+  index.newestScanned = null;
+  index.complete = false;
+  index.hydrated = false;
+  index.escrow = escrow;
+}
+
+/** Read the persisted scan position, once per process. */
+async function hydrate(escrow: string) {
+  if (index.hydrated) return;
+  index.hydrated = true;
+  if (!db) return;
+
+  try {
+    const [state] = await db
+      .select()
+      .from(schema.chainScan)
+      .where(eq(schema.chainScan.escrow, escrow))
+      .limit(1);
+    if (!state) return;
+    if (state.oldestScanned !== null) index.oldestScanned = BigInt(state.oldestScanned);
+    if (state.newestScanned !== null) index.newestScanned = BigInt(state.newestScanned);
+    index.complete = state.complete;
+  } catch {
+    // A missing table is not worth failing a page over — fall back to scanning.
+  }
+}
+
+async function saveState(escrow: string) {
+  if (!db) return;
+  const row = {
+    escrow,
+    oldestScanned: index.oldestScanned === null ? null : Number(index.oldestScanned),
+    newestScanned: index.newestScanned === null ? null : Number(index.newestScanned),
+    complete: index.complete,
+  };
+  try {
+    await db
+      .insert(schema.chainScan)
+      .values(row)
+      .onConflictDoUpdate({ target: schema.chainScan.escrow, set: row });
+  } catch {
+    // Losing the bookmark costs a re-scan, never correctness.
+  }
+}
+
+/** Write a window's decisions. The key is the dedupe, so overlap is free. */
+async function persist(escrow: string, rows: Decision[]) {
+  if (!db || rows.length === 0) return;
+  try {
+    await db
+      .insert(schema.chainDecisions)
+      .values(
+        rows.map((d) => ({
+          key: keyOf(d),
+          escrow,
+          verdict: d.verdict,
+          campaignId: d.campaignId,
+          wallet: d.wallet,
+          tasker: d.tasker ?? "",
+          actionIndex: d.actionIndex,
+          amount: d.amount ?? "",
+          reason: d.reason,
+          txHash: d.txHash,
+          blockNumber: Number(d.blockNumber),
+        })),
+      )
+      .onConflictDoNothing({ target: schema.chainDecisions.key });
+  } catch {
+    // Same reasoning as saveState: the chain is the source of truth.
+  }
+}
 
 /** Block to stop scanning back at — before this, the escrow did not exist. */
 function floorBlock(): bigint {
@@ -194,6 +292,7 @@ export function indexState() {
     oldestScanned: index.oldestScanned === null ? null : String(index.oldestScanned),
     newestScanned: index.newestScanned === null ? null : String(index.newestScanned),
     floor: String(floorBlock()),
+    durable: Boolean(db),
   };
 }
 
@@ -206,6 +305,39 @@ export async function recentDecisions(params: {
 
   await scan(escrow);
 
+  if (db) {
+    try {
+      const where =
+        campaignId === undefined
+          ? eq(schema.chainDecisions.escrow, escrow)
+          : and(
+              eq(schema.chainDecisions.escrow, escrow),
+              eq(schema.chainDecisions.campaignId, Number(campaignId)),
+            );
+
+      const rows = await db
+        .select()
+        .from(schema.chainDecisions)
+        .where(where)
+        .orderBy(desc(schema.chainDecisions.blockNumber))
+        .limit(limit);
+
+      return rows.map((r) => ({
+        verdict: r.verdict as Decision["verdict"],
+        campaignId: r.campaignId,
+        wallet: r.wallet as `0x${string}`,
+        tasker: (r.tasker || undefined) as `0x${string}` | undefined,
+        actionIndex: r.actionIndex,
+        amount: r.amount || undefined,
+        reason: r.reason,
+        txHash: r.txHash as `0x${string}`,
+        blockNumber: String(r.blockNumber),
+      }));
+    } catch {
+      // Fall through to whatever this process has in memory.
+    }
+  }
+
   const out = index.rows.filter((r) => campaignId === undefined || BigInt(r.campaignId) === campaignId);
   out.sort((a, b) => Number(BigInt(b.blockNumber) - BigInt(a.blockNumber)));
   return out.slice(0, limit);
@@ -214,7 +346,7 @@ export async function recentDecisions(params: {
 /** Arc caps `eth_getLogs` at 10,000 blocks, so every scan moves a window at a time. */
 const WINDOW = BigInt(9_500);
 
-async function readWindow(escrow: `0x${string}`, from: bigint, to: bigint) {
+async function readWindow(escrow: `0x${string}`, from: bigint, to: bigint): Promise<Decision[]> {
   /**
    * One request per window, not two.
    *
@@ -226,6 +358,7 @@ async function readWindow(escrow: `0x${string}`, from: bigint, to: bigint) {
     publicClient.getLogs({ address: escrow, events: escrowEvents, fromBlock: from, toBlock: to }),
   );
 
+  const found: Decision[] = [];
   for (const l of logs) {
     const common = {
       campaignId: Number(l.args.campaignId),
@@ -237,21 +370,29 @@ async function readWindow(escrow: `0x${string}`, from: bigint, to: bigint) {
     };
 
     if (l.eventName === "Settled") {
-      add({
+      found.push({
         ...common,
         verdict: "settled",
         tasker: l.args.tasker as `0x${string}`,
         amount: String(l.args.amount ?? BigInt(0)),
       });
     } else if (l.eventName === "Held") {
-      add({ ...common, verdict: "held" });
+      found.push({ ...common, verdict: "held" });
     }
   }
+
+  for (const d of found) add(d);
+  await persist(escrow, found);
+  return found;
 }
 
 /** Keyed so a re-scan of an overlapping window cannot duplicate a decision. */
+function keyOf(d: Decision): string {
+  return `${d.verdict}:${d.txHash}:${d.campaignId}:${d.wallet}:${d.actionIndex}`;
+}
+
 function add(d: Decision) {
-  const key = `${d.verdict}:${d.txHash}:${d.campaignId}:${d.wallet}:${d.actionIndex}`;
+  const key = keyOf(d);
   if (index.seen.has(key)) return;
   index.seen.add(key);
   index.rows.push(d);
@@ -262,6 +403,9 @@ function add(d: Decision) {
  * continues in the background so the first request is not held for minutes.
  */
 async function scan(escrow: `0x${string}`) {
+  resetFor(escrow);
+  await hydrate(escrow);
+
   const head = await withRetry(() => publicClient.getBlockNumber());
 
   // Forward catch-up: cheap, and keeps a live dashboard current.
@@ -273,6 +417,7 @@ async function scan(escrow: `0x${string}`) {
       from = to + BigInt(1);
     }
     index.newestScanned = head;
+    await saveState(escrow);
   }
 
   if (index.complete || index.running) return;
@@ -281,7 +426,9 @@ async function scan(escrow: `0x${string}`) {
   if (index.newestScanned === null) index.newestScanned = head;
   if (index.oldestScanned === null) index.oldestScanned = head + BigInt(1);
 
-  // Backfill backwards, newest first, so useful rows appear early.
+  // Backfill backwards, newest first, so useful rows appear early. Each window is
+  // persisted as it is read and the position saved with it, so an interrupted backfill
+  // resumes where it stopped instead of starting over — including in a new instance.
   void (async () => {
     try {
       const floor = floorBlock();
@@ -290,10 +437,12 @@ async function scan(escrow: `0x${string}`) {
         const from = to > floor + WINDOW ? to - WINDOW : floor;
         await readWindow(escrow, from, to);
         index.oldestScanned = from;
+        await saveState(escrow);
         if (from <= floor) break;
         await new Promise((r) => setTimeout(r, 40));
       }
       index.complete = true;
+      await saveState(escrow);
     } catch {
       // Leave it incomplete; the next request resumes from where it stopped.
     } finally {

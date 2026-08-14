@@ -15,7 +15,7 @@
  * is exactly why this exists.
  */
 
-import { randomUUID } from "node:crypto";
+import { randomUUID, randomBytes } from "node:crypto";
 import { eq, and, inArray } from "drizzle-orm";
 import { db, schema } from "./db/client";
 import { allCampaigns, type Campaign, type Industry, type TaskType } from "./data";
@@ -451,6 +451,24 @@ export async function updateCampaign(id: number, patch: Partial<Campaign>): Prom
 
 // --------------------------------------------------------------------- takes
 
+/**
+ * The random tail of a referral code.
+ *
+ * `Math.random()` is not seeded for unpredictability and is not required to be
+ * uniform, so it is the wrong generator for anything a stranger could try to guess
+ * or collide with. A referral code decides who gets paid, which makes it worth the
+ * one-line difference.
+ *
+ * Crockford's base32 alphabet: 32 characters exactly, so masking five bits off a
+ * random byte is uniform — `% 30` over a 0–255 byte would quietly favour the first
+ * sixteen. It also drops i, l, o and u, so a code cannot be misread off a screen and
+ * cannot accidentally spell anything.
+ */
+function suffix(): string {
+  const alphabet = "0123456789abcdefghjkmnpqrstvwxyz";
+  return Array.from(randomBytes(6), (b) => alphabet[b & 31]).join("");
+}
+
 export async function takeCampaign(userId: string, campaignId: number): Promise<Take> {
   const existing = await findTake(userId, campaignId);
   if (existing) return existing;
@@ -464,7 +482,7 @@ export async function takeCampaign(userId: string, campaignId: number): Promise<
     id: randomUUID(),
     campaignId,
     userId,
-    refCode: `${slug}-${handle}-${Math.random().toString(36).slice(2, 6)}`,
+    refCode: `${slug}-${handle}-${suffix()}`,
     clicks: 0,
     results: 0,
     earned: 0,
