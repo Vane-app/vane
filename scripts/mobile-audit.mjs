@@ -289,18 +289,60 @@ async function run() {
   }
 
   if (warns.length) {
-    // Collapsed: the same small button on three viewports is one problem, not three.
-    const seen = new Map();
+    /*
+      Collapsed twice over, because the raw count is misleading.
+
+      The same footer link is counted once per viewport and once per page it appears on,
+      so one small control can arrive as a dozen warnings and a list of them reads as a
+      wall rather than a to-do. Group by what the thing actually is, and say where it
+      shows up.
+    */
+    const groups = new Map();
     for (const w of warns) {
-      const key = `${w.page}|${w.message}`;
-      seen.set(key, (seen.get(key) ?? 0) + 1);
+      const kind = w.message.startsWith("small tap target")
+        ? "tap"
+        : /^\d/.test(w.message)
+          ? "text"
+          : "other";
+      // The control itself, without the measurements that vary by page.
+      const what = w.message.replace(/^small tap target /, "").replace(/ \d+x\d+px$/, "");
+      const key = `${kind}|${what}`;
+      const g = groups.get(key) ?? { kind, what, pages: new Set(), sizes: new Set() };
+      g.pages.add(w.page);
+      const size = w.message.match(/(\d+x\d+px)|(^[\d.]+px)/);
+      if (size) g.sizes.add(size[0]);
+      groups.set(key, g);
     }
-    console.log("\x1b[1mWorth fixing\x1b[0m");
-    for (const [key, n] of [...seen.entries()].sort((a, b) => b[1] - a[1]).slice(0, 22)) {
-      const [page, message] = key.split("|");
-      console.log(`  \x1b[2m${page}\x1b[0m  ${message}${n > 1 ? `  \x1b[2m(x${n})\x1b[0m` : ""}`);
+
+    const byKind = (k) => [...groups.values()].filter((g) => g.kind === k);
+
+    const taps = byKind("tap");
+    if (taps.length) {
+      console.log(`\x1b[1mUnder 44px — harder to tap than it should be\x1b[0m`);
+      for (const g of taps.sort((a, b) => b.pages.size - a.pages.size)) {
+        const size = [...g.sizes][0] ?? "";
+        console.log(
+          `  ${String(size).padEnd(10)} ${g.what.padEnd(32)} \x1b[2m${[...g.pages].join(", ")}\x1b[0m`,
+        );
+      }
+      console.log("");
     }
-    console.log("");
+
+    const texts = byKind("text");
+    if (texts.length) {
+      console.log(`\x1b[1mUnder 12px — hard to read on a phone\x1b[0m`);
+      for (const g of texts) {
+        const size = [...g.sizes][0] ?? "";
+        console.log(
+          `  ${String(size).padEnd(10)} ${g.what.padEnd(32)} \x1b[2m${[...g.pages].join(", ")}\x1b[0m`,
+        );
+      }
+      console.log("");
+    }
+
+    const other = byKind("other");
+    for (const g of other) console.log(`  ${g.what}  \x1b[2m${[...g.pages].join(", ")}\x1b[0m`);
+    if (other.length) console.log("");
   }
 
   console.log(
