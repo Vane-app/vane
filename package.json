@@ -14,12 +14,14 @@
     "app": "npm run dev -w app",
     "deploy": "npm run deploy -w @vane/contracts",
     "typecheck": "npm run typecheck -w @vane/agent",
-    "check": "node scripts/smoke.mjs"
+    "check": "node scripts/smoke.mjs",
+    "mobile": "node scripts/mobile-audit.mjs"
   },
   "engines": {
     "node": ">=20"
   },
   "devDependencies": {
-    "next": "16.2.11"
+    "next": "16.2.11",
+    "playwright": "^1.62.1"
   }
 }

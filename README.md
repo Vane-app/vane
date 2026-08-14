@@ -67,6 +67,16 @@ anvil &                              # any local EVM on :8545
 npm run test -w @vane/contracts
 ```
 
+Both journeys are walked on a real browser at three phone widths — sign in, browse, open
+a campaign, switch sides, post a campaign — measuring what a stylesheet cannot tell you:
+whether a page scrolls sideways, whether a control is too small to hit, whether any text
+is too small to read.
+
+```bash
+npm run app                          # or point it at a deployment
+npm run mobile
+```
+
 Compile and deploy the contracts to Arc:
 
 ```bash

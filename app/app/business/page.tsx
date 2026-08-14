@@ -170,6 +170,28 @@ export default function BusinessDashboard() {
           <AgentExplainer />
         </section>
 
+        {/*
+          The agent's real work, before this account has any of its own.
+
+          An empty dashboard used to end here, which meant the strongest thing Vane has
+          was invisible to anyone who had not already posted and funded a campaign. The
+          falcon's settlements and refusals are public — they are events on the escrow,
+          readable by anybody — so there is no reason to make somebody spend money before
+          we will show them the thing they are being asked to trust.
+
+          Not this account's decisions, because it has none. Everything the agent has
+          decided, each row linking to the transaction that recorded it.
+        */}
+        <section className="fade-up d4" style={{ marginTop: 26 }}>
+          <div className="sec-head">
+            <span>The falcon, working right now</span>
+          </div>
+          <p className="sub" style={{ fontSize: 13, marginTop: -4, marginBottom: 12, maxWidth: "46ch" }}>
+            Live on Arc, from campaigns already running. Every row is a transaction you can open.
+          </p>
+          <Decisions emptyNote="The falcon has not decided anything on this deployment yet. Its first verdict will appear here." />
+        </section>
+
         <WalletStrip />
         <TabBar />
       </main>

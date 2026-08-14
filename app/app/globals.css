@@ -1401,6 +1401,13 @@ input {
   box-shadow: inset 0 0 0 1px var(--line);
 }
 
+/*
+  Sized for a thumb, since this is the control that changes what the whole app is.
+
+  It sat at 33px tall, which is under the 44px a finger reliably hits — and this is not a
+  control anyone should have to aim at twice: missing it is the difference between the
+  earning side and the advertising side of the product.
+*/
 .modetoggle button {
   font-size: 12.5px;
   font-weight: 700;
@@ -1409,6 +1416,18 @@ input {
   border-radius: var(--pill);
   transition: color 0.16s var(--ease), background 0.16s var(--ease);
   white-space: nowrap;
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* The pill sets the outer height; 44px total with the track's own 3px of padding. */
+@media (max-width: 900px) {
+  .modetoggle button {
+    min-height: 38px;
+    padding-inline: 16px;
+  }
 }
 
 .modetoggle button.on {
@@ -2763,10 +2782,28 @@ h3 {
   color: var(--ink);
 }
 
+/*
+  Rate and budget, stacked until there is room for both.
+
+  These sat side by side at every width. `1fr` is `minmax(auto, 1fr)`, and the auto floor
+  is the column's min-content — a $ sign, a number input and 16px of padding either side,
+  which bottoms out around 287px. Two of those plus the gap is 590px, so on a 360px phone
+  the form ran 251px off the side of the screen and the budget field was unreachable: a
+  business could not post a campaign on a phone at all.
+
+  minmax(0, 1fr) lets the columns shrink when they do share a row, so the same collapse
+  cannot come back through a narrower container elsewhere.
+*/
 .post-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
+}
+
+@media (min-width: 560px) {
+  .post-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
 }
 
 .post-input {
@@ -2787,10 +2824,13 @@ h3 {
   outline: none;
   background: transparent;
   font: inherit;
+  /* 16px is the floor that stops iOS zooming the page when the field takes focus. */
   font-size: 18px;
   font-weight: 700;
   color: var(--ink);
   -moz-appearance: textfield;
+  /* The wrapper's padding made this look tappable while the field itself was 30px. */
+  min-height: 28px;
 }
 
 .post-input input::-webkit-outer-spin-button,
@@ -2822,12 +2862,29 @@ h3 {
 
 /* ---------------------------------------------------------- marketplace */
 
+/*
+  Stacked on a phone, side by side once there is room.
+
+  The heading and the button shared a row at every width. On a 360px screen the button
+  takes about half of it, so "Discover campaigns" broke across two lines and the sentence
+  under it wrapped into four short ones against a hard edge — the page led with a
+  cramped column rather than the thing it is for.
+*/
 .mk-head {
   display: flex;
+  flex-direction: column;
   align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
+  gap: 14px;
   margin-bottom: 18px;
+}
+
+@media (min-width: 600px) {
+  .mk-head {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+  }
 }
 
 .mk-post {
@@ -2887,6 +2944,10 @@ h3 {
   background: rgba(255, 255, 255, 0.05);
   box-shadow: inset 0 0 0 1px var(--line);
   transition: background 0.16s var(--ease), color 0.16s var(--ease);
+  /* These scroll sideways in a row, so a short target is also a moving one. */
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
 }
 
 .mk-tab:hover {
@@ -3512,6 +3573,15 @@ h3 {
   display: inline-grid;
   place-items: center;
   flex-shrink: 0;
+  /*
+    The ring is the account button in the header, and it drew at 38px. The extra reach
+    is given as a transparent outline rather than a bigger ring, so the avatar keeps its
+    size and the thumb still gets 44px.
+  */
+  min-width: 44px;
+  min-height: 44px;
+  outline: 3px solid transparent;
+  outline-offset: -3px;
 }
 
 /* people row — the human element */
