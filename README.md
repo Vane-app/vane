@@ -1,5 +1,10 @@
 # Vane
 
+[![CI](https://github.com/Vane-app/vane/actions/workflows/ci.yml/badge.svg)](https://github.com/Vane-app/vane/actions/workflows/ci.yml)
+[![Live on Arc testnet](https://img.shields.io/badge/Arc%20testnet-5042002-f0a94b)](https://testnet.arcscan.app/address/0xbd0e454eae86cc605f9e1fe68dc238547a568b2f)
+[![Try it](https://img.shields.io/badge/try%20it-vane--phi.vercel.app-4fc08d)](https://vane-phi.vercel.app)
+[![License: MIT](https://img.shields.io/badge/license-MIT-6d7d87)](LICENSE)
+
 **A performance marketing marketplace on Arc, where an autonomous agent replaces the middleman.** Businesses lock a USDC campaign budget in escrow and post the result they will pay for. Anyone can earn it — a person, or an autonomous agent.
 
 The falcon verifies every claimed result against on-chain evidence and settles in about a second: paying honest work, refusing fraud with a written reason published on-chain, and returning unspent budget automatically. It can judge, but it can never touch the money — the payee is fixed by the contract before the work happens.
@@ -33,6 +38,15 @@ business funds a campaign  →  tasker claims a referral code  →  referred use
                     settle in ~1s          or          hold, with a reason
 ```
 
+## What it looks like
+
+<p align="center">
+  <img src="docs/screens/home.png" alt="The homepage: get paid in seconds" width="24%">
+  <img src="docs/screens/browse-signed-in.png" alt="The marketplace, showing funded campaigns and their rates" width="24%">
+  <img src="docs/screens/campaign-detail.png" alt="A campaign, showing what counts as a result and how the falcon verifies it" width="24%">
+  <img src="docs/screens/dashboard.png" alt="A business dashboard, showing the falcon's settlements and refusals read off Arc" width="24%">
+</p>
+
 ## Repository
 
 | Path | What it is |
@@ -46,6 +60,9 @@ business funds a campaign  →  tasker claims a referral code  →  referred use
 | `agent/src/circle/` | Circle Wallets, Smart Contract Platform, agent-to-agent payments. |
 | `agent/src/demo.ts` | The decision engine, runnable offline in 5 seconds. |
 | `app/` | Next.js front end — business and tasker experiences. |
+| `contracts/scripts/registry-test.ts` | The referral-hijack attack, run against a local chain. |
+| `scripts/mobile-audit.mjs` | Both journeys walked on a real browser at three phone widths. |
+| `docs/` | How the product is meant to work, and how it got here. |
 
 ## Run it
 
@@ -117,7 +134,7 @@ Settlement runs from `/api/cron/settle`, triggered by the conversion that needs 
 | **Circle Wallets** (developer-controlled) | The falcon's own operating wallet only. It must act autonomously, and it holds no user money. |
 | **Circle Smart Contract Platform** | Deploys and reads the vault and registry. No private key on disk. |
 | **Circle Compliance Engine** | Address screening inside the falcon's judgement. Answers the half our own engine cannot: heuristics tell a farm from an audience, but only a registry knows an address is sanctioned. A prohibited match is a gate, not a score — no amount of genuine-looking behaviour makes it payable. Live on `ARC-TESTNET`. |
-| **Circle Nanopayments** (Gateway) | Gas-free USDC down to $0.000001 via x402 + EIP-3009, batched offchain. Supported on Arc Testnet, and user wallets are `EOA` so it stays available. *Spec'd in `ROUTE.md` §7b, not yet built.* |
+| **Circle Nanopayments** (Gateway) | Gas-free USDC down to $0.000001 via x402 + EIP-3009, batched offchain. Supported on Arc Testnet, and user wallets are `EOA` so it stays available. *Spec'd in [`docs/ROUTE.md`](docs/ROUTE.md) §7b, not yet built.* |
 | **`settleBatch`** | Our own on-chain batching in `VaneEscrow.sol`. Not a Circle product — many escrow payouts amortised into one transaction. Proven: 12 sub-cent payouts, one transaction. |
 | **CCTP** | Arc domain `26`. Cross-chain campaign funding — designed for, deliberately not in the MVP. |
 
