@@ -161,7 +161,49 @@ scenario(
   honestTasker,
 );
 
-console.log(`${BOLD}5. Cluster detection${RESET}`);
+scenario(
+  "5. A clean wallet, dirty money",
+  "The wallet is minutes old, so screening it proves nothing. The address that funded it is another matter.",
+  {
+    campaignId: 1n,
+    wallet: "0xFA1CE70000000000000000000000000000000002" as `0x${string}`,
+    actionIndex: 5n,
+    kind: "signup",
+    observedAt: NOW - 7200,
+  },
+  {
+    /**
+     * The case screening the converting address alone cannot catch.
+     *
+     * Vane creates a wallet for each person, so by the time anyone converts it is
+     * minutes old and has no history for a registry to have an opinion about. It comes
+     * back APPROVED because nothing has happened to it yet — not because it was checked
+     * against anything meaningful. The money it holds came from somewhere, and that
+     * address does have a past.
+     */
+    sealedAt: NOW - 9000,
+    firstSeenAt: NOW - 9000,
+    txCount: 2,
+    txCountAfterConversion: 3,
+    usdcBalance: 40_000_000n,
+    fundedBy: "0x5A17C70000000000000000000000000000000001" as `0x${string}`,
+    compliance: {
+      result: "APPROVED",
+      categories: [],
+      prohibited: false,
+      summary: "Address cleared compliance screening.",
+    },
+    funderCompliance: {
+      result: "DENIED",
+      categories: ["SANCTIONS"],
+      prohibited: true,
+      summary: "Address denied by compliance screening: sanctions.",
+    },
+  },
+  honestTasker,
+);
+
+console.log(`${BOLD}6. Cluster detection${RESET}`);
 console.log(`${DIM}Individually unremarkable wallets. The pattern is the evidence.${RESET}\n`);
 const cluster = detectCluster([
   { wallet: "0x01" as `0x${string}`, sealedAt: NOW - 5000 },

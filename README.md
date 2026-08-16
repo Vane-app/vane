@@ -73,7 +73,7 @@ npm install
 npm run demo
 ```
 
-You will see four scenarios judged: a real referral paid, a sybil farm refused with seven reasons, a brand-new tasker correctly *not* punished for being new, and a wallet cluster flagged by pattern.
+You will see six scenarios judged: a real referral paid, a sybil farm refused with seven reasons, a brand-new tasker correctly *not* punished for being new, a sanctioned address refused despite a perfect behavioural profile, a clean wallet refused because the address that funded it was not, and a wallet cluster flagged by pattern.
 
 The contracts are tested on a throwaway local chain — no keys, no testnet USDC, no Circle
 account. It deploys the escrow and registry, runs the referral-hijack attack against
@@ -133,7 +133,7 @@ Settlement runs from `/api/cron/settle`, triggered by the conversion that needs 
 | **Circle Wallets** (user-controlled) | Taskers and businesses. Non-custodial MPC — Vane cannot move their funds. A PIN set inside Circle's own window, never seen by us, and no seed phrases ever. Circle's email OTP is implemented in `app/lib/circle-user.ts` and `CircleLogin.tsx`; sign-in currently uses Vane's own codes, one switch away. |
 | **Circle Wallets** (developer-controlled) | The falcon's own operating wallet only. It must act autonomously, and it holds no user money. |
 | **Circle Smart Contract Platform** | Deploys and reads the vault and registry. No private key on disk. |
-| **Circle Compliance Engine** | Address screening inside the falcon's judgement. Answers the half our own engine cannot: heuristics tell a farm from an audience, but only a registry knows an address is sanctioned. A prohibited match is a gate, not a score — no amount of genuine-looking behaviour makes it payable. Live on `ARC-TESTNET`. |
+| **Circle Compliance Engine** | Address screening inside the falcon's judgement. Answers the half our own engine cannot: heuristics tell a farm from an audience, but only a registry knows an address is sanctioned. A prohibited match is a gate, not a score — no amount of genuine-looking behaviour makes it payable. Screens the funding source as well as the converting wallet, because Vane creates a wallet per person and a minutes-old address is clean by construction rather than by inspection. Live on `ARC-TESTNET`. |
 | **Circle Nanopayments** (Gateway) | Gas-free USDC down to $0.000001 via x402 + EIP-3009, batched offchain. Supported on Arc Testnet, and user wallets are `EOA` so it stays available. *Spec'd in [`docs/ROUTE.md`](docs/ROUTE.md) §7b, not yet built.* |
 | **`settleBatch`** | Our own on-chain batching in `VaneEscrow.sol`. Not a Circle product — many escrow payouts amortised into one transaction. Proven: 12 sub-cent payouts, one transaction. |
 | **CCTP** | Arc domain `26`. Cross-chain campaign funding — designed for, deliberately not in the MVP. |
@@ -169,7 +169,7 @@ Being precise about this matters more than claiming more than we can prove.
 - funding concentration across a tasker's referred wallets
 - the tasker's own settled/held record
 - cluster detection across a batch — the pattern is evidence no single wallet reveals
-- **Circle Compliance Engine screening** — sanctions and illicit-activity risk on the converting address
+- **Circle Compliance Engine screening** — sanctions and illicit-activity risk, on the converting address *and on the address that funded it*
 
 The last one is different in kind from the rest, and treated differently. Everything above it is behavioural: evidence about whether a result is genuine, weighed against other evidence. A sanctions match is not evidence, it is a prohibition — so it gates rather than scores, and no amount of genuine-looking history makes the payout allowed. Screening being unavailable is recorded as unavailable, never as clean.
 

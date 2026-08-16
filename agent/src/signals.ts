@@ -193,6 +193,7 @@ export async function walletSignals(
   return {
     sealedAt: sealed,
     firstSeenAt: await firstSeenAt(wallet, sealed),
+    fundedBy: await firstFunder(wallet),
     txCount,
     txCountAfterConversion: Math.max(0, txCountNow - txCount),
     usdcBalance: balance as bigint,
@@ -208,6 +209,46 @@ export async function walletSignals(
 async function firstSeenAt(wallet: `0x${string}`, sealedAt: number): Promise<number> {
   const nonce = await withRetry(() => publicClient.getTransactionCount({ address: wallet }));
   return nonce === 0 ? sealedAt : 0;
+}
+
+/**
+ * Who paid for this wallet to exist.
+ *
+ * Screening the converting address is close to meaningless on its own here: Vane creates
+ * a wallet for each person, so the address is minutes old and has no history for any
+ * registry to have an opinion about. It comes back clean because it is new, not because
+ * anyone checked anything.
+ *
+ * The money had to come from somewhere, though, and that address is not new. A fresh
+ * wallet funded out of a sanctioned one is the case this exists to catch, and it is
+ * invisible if you only ever look at the wallet in front of you.
+ *
+ * Earliest inbound USDC transfer within the scan range. Fresh wallets are funded shortly
+ * before they convert, so the window that already bounds every other read reaches it.
+ */
+export async function firstFunder(wallet: `0x${string}`): Promise<`0x${string}` | undefined> {
+  const logs = await scanLogs((fromBlock, toBlock) =>
+    withRetry(() =>
+      publicClient.getLogs({
+        address: USDC_ADDRESS,
+        event: transferEvent,
+        args: { to: wallet },
+        fromBlock,
+        toBlock,
+      }),
+    ),
+  ).catch(() => []);
+
+  if (logs.length === 0) return undefined;
+
+  // scanLogs walks newest-first, so the funding transfer is the last one it reaches.
+  let earliest = logs[0];
+  for (const l of logs) {
+    if ((l.blockNumber ?? 0n) < (earliest.blockNumber ?? 0n)) earliest = l;
+  }
+
+  const from = (earliest.args as { from?: string }).from;
+  return from ? (from as `0x${string}`) : undefined;
 }
 
 /** Aggregate a tasker's behaviour across the campaign from settlement history. */

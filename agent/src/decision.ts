@@ -63,6 +63,15 @@ export interface WalletSignals {
    * find out — which is recorded, never silently treated as clean.
    */
   compliance?: ComplianceSignal;
+  /**
+   * The same verdict on whoever funded this wallet.
+   *
+   * Screening the converting address alone is weak here by construction: Vane creates a
+   * wallet per person, so it is minutes old and clean because nothing has happened to it
+   * yet. The funding address is the one with a past, and a fresh wallet paid for out of a
+   * sanctioned one is exactly what a registry knows and behaviour cannot show.
+   */
+  funderCompliance?: ComplianceSignal;
 }
 
 export interface TaskerSignals {
@@ -140,6 +149,29 @@ export function evaluate(
       reason: `Held — ${compliance.summary}`,
       signals: [`compliance: denied by screening`],
     };
+  }
+
+  // The same prohibition, one step back. Money that came out of a sanctioned address is
+  // not made payable by arriving in a wallet too new to have a record of its own.
+  const funder = wallet.funderCompliance;
+  if (funder?.prohibited || funder?.result === "DENIED") {
+    const categories = funder.categories.join(", ").toLowerCase();
+    return {
+      verdict: "hold",
+      risk: 100,
+      reason: `Held — this wallet was funded by an address flagged by compliance screening${
+        categories ? ` (${categories})` : ""
+      }.`,
+      signals: [
+        `funding source ${wallet.fundedBy ?? "unknown"} — ${categories || "matched a prohibited rule"}`,
+      ],
+    };
+  }
+  if (funder?.categories.length) {
+    risk += 20;
+    signals.push(`funding source flagged: ${funder.categories.join(", ").toLowerCase()}`);
+  } else if (funder?.result === "APPROVED") {
+    signals.push("funding source cleared compliance screening");
   }
 
   // Everything below is scored. Flags that are not prohibitions are evidence like any

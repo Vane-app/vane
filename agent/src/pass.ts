@@ -92,6 +92,12 @@ async function judge(
   // engine could never compute for itself.
   wallet.compliance = await screenAddress(claim.wallet);
 
+  // And the address that paid for this wallet to exist. Screening a Vane-created wallet
+  // on its own mostly proves it is new — the funder is the one with a history.
+  if (wallet.fundedBy) {
+    wallet.funderCompliance = await screenAddress(wallet.fundedBy);
+  }
+
   const { seals, referred, lastHour, record, funders } = await historyFromChain(
     claim.campaignId,
     tasker,

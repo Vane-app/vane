@@ -303,7 +303,9 @@ export async function recentDecisions(params: {
 }): Promise<Decision[]> {
   const { escrow, campaignId, limit = 20 } = params;
 
-  await scan(escrow);
+  // Reading the chain is how the index stays current; it is not how a request is
+  // answered. If Arc is unreachable or rate-limiting, serve what is already stored.
+  await scan(escrow).catch(() => {});
 
   if (db) {
     try {
@@ -408,15 +410,31 @@ async function scan(escrow: `0x${string}`) {
 
   const head = await withRetry(() => publicClient.getBlockNumber());
 
-  // Forward catch-up: cheap, and keeps a live dashboard current.
+  /**
+   * Forward catch-up, and it must never be able to fail the request.
+   *
+   * Arc's public RPC rate-limits, and the gap to catch up grows with every hour nothing
+   * has run — sub-second blocks are about 160,000 a day, so a deployment left alone over
+   * a weekend wakes up to a long walk against a limiter. That walk throwing used to take
+   * the whole response with it: the dashboard showed an error and none of the decisions
+   * already sitting in Postgres, which is exactly the failure persisting them was meant
+   * to prevent.
+   *
+   * Whatever windows succeed are saved. The rest is picked up next request, and stale
+   * decisions are served in the meantime.
+   */
   if (index.newestScanned !== null && head > index.newestScanned) {
     let from = index.newestScanned + BigInt(1);
-    while (from <= head) {
-      const to = from + WINDOW > head ? head : from + WINDOW;
-      await readWindow(escrow, from, to);
-      from = to + BigInt(1);
+    try {
+      while (from <= head) {
+        const to = from + WINDOW > head ? head : from + WINDOW;
+        await readWindow(escrow, from, to);
+        from = to + BigInt(1);
+        index.newestScanned = to;
+      }
+    } catch {
+      // Keep the ground gained; the next request resumes from it.
     }
-    index.newestScanned = head;
     await saveState(escrow);
   }
 
