@@ -135,7 +135,7 @@ Settlement runs from `/api/cron/settle`, triggered by the conversion that needs 
 | **Circle Smart Contract Platform** | Deploys and reads the vault and registry. No private key on disk. |
 | **Circle Compliance Engine** | Address screening inside the falcon's judgement. Answers the half our own engine cannot: heuristics tell a farm from an audience, but only a registry knows an address is sanctioned. A prohibited match is a gate, not a score — no amount of genuine-looking behaviour makes it payable. Screens the funding source as well as the converting wallet, because Vane creates a wallet per person and a minutes-old address is clean by construction rather than by inspection. Live on `ARC-TESTNET`. |
 | **Circle Nanopayments** (Gateway) | Gas-free USDC down to $0.000001 via x402 + EIP-3009, batched offchain. Supported on Arc Testnet, and user wallets are `EOA` so it stays available. *Spec'd in [`docs/ROUTE.md`](docs/ROUTE.md) §7b, not yet built.* |
-| **`settleBatch`** | Our own on-chain batching in `VaneEscrow.sol`. Not a Circle product — many escrow payouts amortised into one transaction. Proven: 12 sub-cent payouts, one transaction. |
+| **`settleBatch`** | Our own on-chain batching in `VaneEscrow.sol`. Not a Circle product — many escrow payouts amortised into one transaction. Proven: [12 sub-cent payouts in one transaction](https://testnet.arcscan.app/tx/0x34fed2ecccceede8a100270472b8682ff562798e650e7fd80132f9259e380ad4). |
 | **CCTP** | Arc domain `26`. Cross-chain campaign funding — designed for, deliberately not in the MVP. |
 
 ## Trust model
@@ -193,7 +193,7 @@ Deterministic checks decide the overwhelming majority of cases, which keeps cost
 - [x] End-to-end settlement on Arc — real USDC, reproducible via `npm run e2e`
 - [x] On-chain refusal of a real sybil farm, with an enforced honest control
 - [x] Autonomous tasker agent — a machine earning USDC per verified result
-- [x] Streaming rev-share via `settleBatch` — 12 sub-cent payouts in one transaction
+- [x] Streaming rev-share via `settleBatch` — [12 sub-cent payouts in one transaction](https://testnet.arcscan.app/tx/0x34fed2ecccceede8a100270472b8682ff562798e650e7fd80132f9259e380ad4)
 - [x] User-controlled wallets: taskers and businesses hold their own keys, and sign their own on-chain actions
 - [x] The falcon's real decisions read off Arc and shown in the app, each linking to its transaction
 - [x] Campaigns posted in the app bind to their on-chain escrow id, and confirm against the chain
